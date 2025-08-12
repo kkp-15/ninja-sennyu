@@ -9,7 +9,7 @@
 <meta name="description" content="罠を読み解き、本丸へ潜入せよ。マインスイーパー風の到達型パズル『忍者潜入の術』。日替わり任務・難易度切替・Xシェア対応。" />
 <meta name="keywords" content="マインスイーパー, 忍者, パズル, 論理, 無料, スマホ, 到達型, Webアプリ" />
 
-<!-- ✅ OGP / X（1200x630 を推奨） -->
+<!-- ✅ OGP / X -->
 <meta property="og:title" content="忍者潜入の術" />
 <meta property="og:description" content="罠を読み解き、本丸へ潜入せよ。日替わり任務あり！" />
 <meta property="og:image" content="card.png" />
@@ -17,10 +17,9 @@
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary_large_image" />
 
-<!-- ✅ Favicon（任意） -->
 <link rel="icon" href="favicon.ico" />
 
-<!-- ✅ Google Analytics（いつもの計測ID） -->
+<!-- ✅ Google Analytics（いつもの） -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-2LM85GJN0L"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -31,85 +30,114 @@
 
 <style>
   :root{
-    --bg:#0b0f1a;         /* 夜色 */
-    --panel:#121828;
-    --accent:#8bd3ff;     /* 忍光 */
-    --safe:#1b2337;
-    --tile:#161e31;
-    --tile-hover:#1c2540;
-    --flag:#ffb84d;
-    --trap:#ff5d5d;
-    --text:#e7eefc;
-    --muted:#9fb2d0;
+    --bg:#0a0f1c;
+    --panel:#111a2e;
+    --accent:#8bd3ff;
+    --text:#eef3ff;
+    --muted:#a8b7d3;
+
+    /* セルのサイズはJSで盤面幅に合わせて更新 */
+    --cell:40px;
+
+    /* コントラスト強化 */
+    --cell-covered:#14203a;
+    --cell-covered-border:#2a3d61;
+    --cell-covered-hover:#1b2a4b;
+
+    --cell-open:#0f1a33;
+    --cell-open-border:#324a77;
+
+    --flag:#ffcc66;
+    --trap:#ff6b6b;
+
     --ok:#64e291;
-    --warn:#ffcc66;
+    --warn:#ffd166;
   }
-  *{box-sizing:border-box}
-  html,body{height:100%}
+  *{ box-sizing:border-box }
+  html,body{ height:100% }
   body{
-    margin:0; background:linear-gradient(180deg,#09101f 0%, #0b0f1a 100%);
+    margin:0; background:linear-gradient(180deg,#091327 0%, #0a0f1c 100%);
     color:var(--text); font-family:system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Segoe UI",Roboto,"Noto Sans JP",sans-serif;
     display:flex; flex-direction:column; align-items:center;
   }
-  header{
-    width:100%; max-width:980px; padding:16px 16px 0; text-align:center;
-  }
-  h1{margin:4px 0 8px; font-size:1.6rem; letter-spacing:.04em}
-  .sub{color:var(--muted); font-size:.9rem}
+  header{ width:100%; max-width:980px; padding:16px 16px 0; text-align:center }
+  h1{ margin:6px 0 8px; font-size:1.7rem; letter-spacing:.02em }
+  .sub{ color:var(--muted); font-size:.95rem }
+
   .bar{
-    width:100%; max-width:980px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center;
+    width:100%; max-width:980px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:center;
     padding:12px 16px;
   }
   select,button{
-    background:var(--panel); color:var(--text); border:1px solid #22304b; border-radius:12px;
-    padding:10px 14px; font-size:.95rem; box-shadow:0 2px 8px rgba(0,0,0,.35);
-    transition:transform .02s ease, background .2s ease, border-color .2s ease;
+    background:var(--panel); color:var(--text); border:2px solid #23365a; border-radius:14px;
+    padding:10px 14px; font-size:1rem; font-weight:600;
+    box-shadow:0 3px 10px rgba(0,0,0,.35);
   }
-  button:hover{ background:#182038 }
+  button:hover{ filter:brightness(1.08) }
   button:active{ transform:translateY(1px) }
   .badge{
-    padding:8px 12px; border-radius:12px; background:#0f1840; color:var(--accent); border:1px solid #203060; min-width:84px; text-align:center
+    padding:10px 14px; border-radius:12px; background:#0e1a39; color:#d8e7ff; border:2px solid #2a4272;
+    min-width:92px; text-align:center; font-weight:700; letter-spacing:.04em
   }
-  #boardWrap{
-    width:100%; max-width:980px; flex:1; display:flex; align-items:center; justify-content:center; padding:8px 16px 16px;
-  }
+
+  #boardWrap{ width:100%; max-width:980px; flex:1; display:flex; align-items:center; justify-content:center; padding:8px 16px 16px }
   #board{
-    display:grid; gap:6px; touch-action:manipulation; background:#0c1326; padding:10px; border-radius:18px; border:1px solid #1d2a45;
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.03), 0 12px 36px rgba(0,0,0,.45);
+    display:grid; gap:6px; touch-action:manipulation; background:#0c1530; padding:12px; border-radius:18px; border:2px solid #243a64;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.05), 0 14px 38px rgba(0,0,0,.45);
   }
   .cell{
-    width:40px; height:40px; display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(180deg,#151d33,#0f1730); border:1px solid #22304b; border-radius:10px; user-select:none;
-    font-weight:700; line-height:1; position:relative;
+    width:var(--cell); height:var(--cell); display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(180deg,var(--cell-covered), #0f1a35); border:2px solid var(--cell-covered-border); border-radius:12px; user-select:none;
+    font-weight:900; line-height:1; position:relative; font-size:calc(var(--cell) * 0.55);
+    color:#dfe8ff;
   }
-  .cell.covered:hover{ background:var(--tile-hover); cursor:pointer }
+  .cell.covered:hover{ background:var(--cell-covered-hover); cursor:pointer }
+
   .cell.open{
-    background:linear-gradient(180deg,#1a2340,#121c39); border-color:#2a3c5d;
+    background:linear-gradient(180deg,var(--cell-open), #0a1430);
+    border-color:var(--cell-open-border);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
   }
   .cell.flag::after{
-    content:"⚑"; position:absolute; font-size:20px; color:var(--flag); transform:translateY(-1px);
-    text-shadow:0 0 8px rgba(255,184,77,.35);
+    content:"⚑"; position:absolute; font-size:calc(var(--cell) * 0.55); color:var(--flag);
+    text-shadow:0 0 8px rgba(255,204,102,.45);
   }
-  .cell.goal::after{ content:"🏯"; position:absolute; font-size:22px; transform:translateY(-1px) }
-  .cell.start::after{ content:"⛩️"; position:absolute; font-size:20px; transform:translateY(-1px) }
-  .n0{color:#99a8c7} .n1{color:#7fc3ff} .n2{color:#ffb86b} .n3{color:#b99cff}
-  .n4{color:#8bd3ff} .n5{color:#ffd166} .n6{color:#64e291} .n7{color:#ff8b8b} .n8{color:#e7eefc}
+  .cell.goal::after{ content:"🏯"; position:absolute; font-size:calc(var(--cell) * 0.55) }
+  .cell.start::after{ content:"⛩️"; position:absolute; font-size:calc(var(--cell) * 0.5) }
+
+  /* 数字色（色弱配慮・高コントラスト） */
+  .n0{color:#b7c7e6}
+  .n1{color:#74b6ff}
+  .n2{color:#ffb354}
+  .n3{color:#c3a1ff}
+  .n4{color:#89ddff}
+  .n5{color:#ffd95e}
+  .n6{color:#6fe8a1}
+  .n7{color:#ff9090}
+  .n8{color:#ffffff}
+
+  /* 失敗時の短いフラッシュ */
   .lost{ animation:lostFlash .15s 3 }
   @keyframes lostFlash{ 0%{filter:none} 50%{filter:hue-rotate(-20deg) brightness(1.4)} 100%{filter:none} }
-  footer{ width:100%; max-width:980px; padding:16px; text-align:center; color:var(--muted) }
-  #footer{
-    border-top:1px solid #23324f; margin-top:12px; padding-top:12px; font-size:.95rem;
+
+  /* 突破（到達）マスを金色で点滅させる */
+  .cell.goal.reached{
+    background:linear-gradient(180deg,#ffd700,#ffb300)!important;
+    border-color:#ffec6e!important; color:#000!important;
+    animation:glow 1.2s ease-in-out infinite alternate;
   }
+  @keyframes glow{
+    0%{ box-shadow:0 0 8px rgba(255,215,0,.5) }
+    100%{ box-shadow:0 0 18px rgba(255,215,0,.95) }
+  }
+
+  footer{ width:100%; max-width:980px; padding:16px; text-align:center; color:var(--muted) }
+  #footer{ border-top:1px solid #243a64; margin-top:12px; padding-top:12px; font-size:.98rem }
   a{ color:var(--accent); text-decoration:none }
   a:hover{ text-decoration:underline }
-  .topRow{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; margin-top:6px }
-  .spacer{ flex:1 1 auto }
-  .ghost{ opacity:.7 }
-  /* レスポンシブ：盤のセルサイズを縮める */
+
   @media (max-width:420px){
-    .cell{ width:34px; height:34px; border-radius:9px; }
-    #board{ gap:5px }
+    .badge{ min-width:88px }
   }
 </style>
 </head>
@@ -141,7 +169,7 @@
 </div>
 
 <footer>
-  <div class="sub ghost">操作：タップ=開く｜長押し=旗｜数字をダブルタップ=合図開け</div>
+  <div class="sub">操作：タップ=開く｜長押し=旗｜数字をダブルタップ=合図開け</div>
   <div id="footer">
     X <a href="https://x.com/kkp_webninja" target="_blank">@kkp_webninja</a> <br>
     🏯 <a href="https://kkpwebninja.com" target="_blank">web忍者の本丸</a><br>
@@ -149,28 +177,16 @@
 </footer>
 
 <script>
-/* ===============================
-   忍者潜入の術 - 到達型スイーパー（MVP）
-   いつもの感じ：
-   - 1ファイル完結 / GitHub Pages可
-   - SEO/OGP/Analytics/フッター
-   - コメント多め・拡張容易
-================================== */
+/* ===== 忍者潜入の術 - 視認性アップ版 ===== */
 
-/* ---------- ユーティリティ（PRNG / シード） ---------- */
 function mulberry32(a){ return function(){ var t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; } }
-function strToSeed(str){
-  let h=2166136261>>>0;
-  for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); }
-  return h>>>0;
-}
+function strToSeed(str){ let h=2166136261>>>0; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
 function pad(n){return n.toString().padStart(2,'0')}
 
-/* ---------- 設定 ---------- */
 const DIFFS = {
-  easy:   {w:9,h:9, density:0.12},
-  normal: {w:12,h:12,density:0.15},
-  hard:   {w:16,h:16,density:0.18}
+  easy:{w:9,h:9,density:0.12},
+  normal:{w:12,h:12,density:0.15},
+  hard:{w:16,h:16,density:0.18}
 };
 const STATE = {
   board:null, rng:Math.random, running:false, startTs:0, timerId:null,
@@ -178,41 +194,16 @@ const STATE = {
   start:{x:0,y:0}, goal:{x:0,y:0}, score:0
 };
 
-/* ---------- 盤面生成：安全パス→罠配置 ---------- */
-function newBoard(diffKey, seedStr){
-  const diff = DIFFS[diffKey];
-  const seed = seedStr || (Date.now().toString(36));
-  STATE.rng = mulberry32(strToSeed(seed));
-  STATE.seed = seed; STATE.diff = diffKey; STATE.lost=false; STATE.won=false; STATE.score=0;
+const elBoard = document.getElementById('board');
+const elTimer = document.getElementById('timer');
+const elFlags = document.getElementById('flags');
+const elScore = document.getElementById('score');
+const elDiff  = document.getElementById('difficulty');
 
-  // 基本配列
-  const W=diff.w, H=diff.h;
-  const cells = Array.from({length:H},(_,y)=>Array.from({length:W},(_,x)=>({
-    x,y,isTrap:false, number:0, state:'covered'
-  })));
-
-  // スタート（左端のランダム行）、ゴール（右端のランダム行）
-  const startY = Math.floor(STATE.rng()*H);
-  const goalY  = Math.floor(STATE.rng()*H);
-  STATE.start={x:0,y:startY}; STATE.goal={x:W-1,y:goalY};
-
-  // 1) 安全パスを彫る（スタート→ゴールへ蛇行気味のランダムウォーク）
-  carveSafePath(cells, W,H, STATE.start, STATE.goal);
-
-  // 2) 残りに罠を配置（密度）
-  const targetTraps = Math.floor(W*H*diff.density);
-  placeTraps(cells, targetTraps);
-
-  // 3) 数字を計算
-  computeNumbers(cells, W,H);
-
-  // 4) 到達保証（安全マスのみで到達できるか一応確認）
-  if(!reachableSafe(cells, W,H, STATE.start, STATE.goal)){
-    // 到達できなければ別seedで再生成
-    return newBoard(diffKey, seedStr ? seedStr+'a' : null);
-  }
-  return {W,H,cells};
-}
+document.getElementById('newGameBtn').addEventListener('click', ()=>startNew());
+document.getElementById('dailyBtn').addEventListener('click', ()=>startDaily());
+document.getElementById('shareBtn').addEventListener('click', shareToX);
+elDiff.addEventListener('change', ()=>startNew());
 
 function neighbors8(x,y,W,H){
   const out=[];
@@ -225,41 +216,57 @@ function neighbors8(x,y,W,H){
   }
   return out;
 }
+
+/* 盤面生成：安全パス→罠配置→数字計算→到達確認 */
+function newBoard(diffKey, seedStr){
+  const diff = DIFFS[diffKey];
+  const seed = seedStr || (Date.now().toString(36));
+  STATE.rng = mulberry32(strToSeed(seed));
+  STATE.seed = seed; STATE.diff = diffKey; STATE.lost=false; STATE.won=false; STATE.score=0;
+
+  const W=diff.w, H=diff.h;
+  const cells = Array.from({length:H},(_,y)=>Array.from({length:W},(_,x)=>({ x,y,isTrap:false,number:0,state:'covered' })));
+
+  const startY = Math.floor(STATE.rng()*H);
+  const goalY  = Math.floor(STATE.rng()*H);
+  STATE.start={x:0,y:startY}; STATE.goal={x:W-1,y:goalY};
+
+  carveSafePath(cells,W,H,STATE.start,STATE.goal);
+
+  const targetTraps = Math.floor(W*H*diff.density);
+  placeTraps(cells,targetTraps);
+
+  computeNumbers(cells,W,H);
+
+  if(!reachableSafe(cells,W,H,STATE.start,STATE.goal)){
+    return newBoard(diffKey, seedStr ? seedStr+'a' : null);
+  }
+  return {W,H,cells};
+}
 function carveSafePath(cells,W,H,start,goal){
-  // 直進バイアス付きランダムウォークで右端へ伸ばす。戻りは控えめ。
   let x=start.x, y=start.y;
-  cells[y][x].safePath = true;
-  const maxSteps = W*H*3;
-  let steps=0;
+  cells[y][x].safePath=true;
+  const maxSteps=W*H*3; let steps=0;
   while((x!==goal.x || y!==goal.y) && steps<maxSteps){
     steps++;
     const moves=[];
-    // 右へのバイアス（ゴールは右端）
-    if(x<goal.x) moves.push({dx:1,dy:0,w:0.48});
-    // 上下へ軽く蛇行
-    if(y>goal.y) moves.push({dx:0,dy:-1,w:0.23});
-    if(y<goal.y) moves.push({dx:0,dy:1,w:0.23});
-    // 稀に斜め
+    if(x<goal.x) moves.push({dx:1,dy:0,w:0.5});
+    if(y>goal.y) moves.push({dx:0,dy:-1,w:0.22});
+    if(y<goal.y) moves.push({dx:0,dy:1,w:0.22});
     moves.push({dx:1,dy:(STATE.rng()<0.5?-1:1),w:0.06});
-
-    const r = STATE.rng();
-    let acc=0, chosen={dx:1,dy:0};
-    for(const m of moves){ acc+=m.w; if(r<=acc){ chosen=m; break; }
-
-    }
-    const nx = Math.max(0, Math.min(W-1, x+chosen.dx));
-    const ny = Math.max(0, Math.min(H-1, y+chosen.dy));
-    x=nx; y=ny;
+    const r=STATE.rng(); let acc=0, chosen=moves[0];
+    for(const m of moves){ acc+=m.w; if(r<=acc){ chosen=m; break; } }
+    x=Math.max(0, Math.min(W-1, x+chosen.dx));
+    y=Math.max(0, Math.min(H-1, y+chosen.dy));
     cells[y][x].safePath=true;
   }
-  // 念のため、スタート/ゴールもマーキング
   cells[start.y][start.x].safePath=true;
   cells[goal.y][goal.x].safePath=true;
 }
-function placeTraps(cells, targetTraps){
+function placeTraps(cells,target){
   const H=cells.length, W=cells[0].length;
   let placed=0, guard=0, maxGuard=W*H*4;
-  while(placed<targetTraps && guard++<maxGuard){
+  while(placed<target && guard++<maxGuard){
     const x=Math.floor(STATE.rng()*W), y=Math.floor(STATE.rng()*H);
     const c=cells[y][x];
     if(c.safePath || c.isTrap) continue;
@@ -271,8 +278,7 @@ function computeNumbers(cells,W,H){
     for(let x=0;x<W;x++){
       const c=cells[y][x];
       if(c.isTrap){ c.number=-1; continue; }
-      let n=0;
-      for(const nb of neighbors8(x,y,W,H)){ if(cells[nb.y][nb.x].isTrap) n++; }
+      let n=0; for(const nb of neighbors8(x,y,W,H)){ if(cells[nb.y][nb.x].isTrap) n++; }
       c.number=n;
     }
   }
@@ -283,8 +289,7 @@ function reachableSafe(cells,W,H,start,goal){
     const p=q.shift();
     if(p.x===goal.x && p.y===goal.y) return true;
     for(const nb of neighbors8(p.x,p.y,W,H)){
-      const key=nb.x+','+nb.y;
-      const c=cells[nb.y][nb.x];
+      const key=nb.x+','+nb.y; const c=cells[nb.y][nb.x];
       if(c.isTrap) continue;
       if(!seen.has(key)){ seen.add(key); q.push(nb); }
     }
@@ -292,57 +297,19 @@ function reachableSafe(cells,W,H,start,goal){
   return false;
 }
 
-/* ---------- 描画・ゲーム管理 ---------- */
-const elBoard = document.getElementById('board');
-const elTimer = document.getElementById('timer');
-const elFlags = document.getElementById('flags');
-const elScore = document.getElementById('score');
-const elDiff  = document.getElementById('difficulty');
-
-document.getElementById('newGameBtn').addEventListener('click', ()=>startNew());
-document.getElementById('dailyBtn').addEventListener('click', ()=>startDaily());
-document.getElementById('shareBtn').addEventListener('click', shareToX);
-elDiff.addEventListener('change', ()=>startNew());
-
-function startNew(){
-  const diff = elDiff.value;
-  const b = newBoard(diff, null);
-  mountBoard(b);
-  startTimer();
-  updateFlagsUI();
-  updateScore(0);
-  // URLを軽く更新（seed/d）
-  const url = new URL(location.href);
-  url.searchParams.set('d', diff);
-  url.searchParams.set('seed', STATE.seed);
-  history.replaceState(null,'',url.toString());
-  gtag('event','start_game',{diff});
-}
-function startDaily(){
-  const diff = elDiff.value;
-  const today = new Date();
-  const seed = today.getFullYear()+pad(today.getMonth()+1)+pad(today.getDate()); // YYYYMMDD
-  const b = newBoard(diff, seed);
-  mountBoard(b);
-  startTimer();
-  updateFlagsUI();
-  updateScore(0);
-  const url = new URL(location.href);
-  url.searchParams.set('d', diff);
-  url.searchParams.set('seed', seed);
-  url.searchParams.set('mission','1');
-  history.replaceState(null,'',url.toString());
-  gtag('event','daily_mission',{diff,seed});
-}
-
+/* 描画・UI */
 function mountBoard({W,H,cells}){
   STATE.board={W,H,cells};
-  // 旗数目安＝罠数推定（数字計算後に数え直してもOK）
   const traps = cells.flat().filter(c=>c.isTrap).length;
   STATE.flagsLeft = traps;
-  STATE.opened = 0; STATE.running=false; STATE.lost=false; STATE.won=false;
+  STATE.opened=0; STATE.running=false; STATE.lost=false; STATE.won=false;
 
-  elBoard.style.gridTemplateColumns = `repeat(${W}, 1fr)`;
+  /* 盤サイズからセル寸法を自動最適化（視認性アップ） */
+  const wrapW = document.getElementById('boardWrap').clientWidth - 40; // 余白分
+  const cell = Math.max(30, Math.min(56, Math.floor((wrapW - (W-1)*6 - 24) / W)));
+  document.documentElement.style.setProperty('--cell', cell+'px');
+
+  elBoard.style.gridTemplateColumns = `repeat(${W}, var(--cell))`;
   elBoard.innerHTML='';
   for(let y=0;y<H;y++){
     for(let x=0;x<W;x++){
@@ -351,17 +318,14 @@ function mountBoard({W,H,cells}){
       div.className='cell covered';
       div.setAttribute('role','gridcell');
       div.dataset.x=x; div.dataset.y=y;
-
-      // スタート/ゴール表示（覆われていてもアイコンで雰囲気）
       if(x===STATE.start.x && y===STATE.start.y) div.classList.add('start');
       if(x===STATE.goal.x && y===STATE.goal.y) div.classList.add('goal');
-
       attachCellHandlers(div);
       elBoard.appendChild(div);
     }
   }
+  updateFlagsUI();
 }
-
 function updateFlagsUI(){ elFlags.textContent = `旗 ${STATE.flagsLeft}`; }
 function startTimer(){
   clearInterval(STATE.timerId);
@@ -374,55 +338,43 @@ function startTimer(){
 }
 function stopTimer(){ STATE.running=false; clearInterval(STATE.timerId); }
 
+function getCellEl(x,y){ return elBoard.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`); }
+
 function openCell(x,y, viaChord=false){
   if(STATE.lost||STATE.won) return;
   const c = STATE.board.cells[y][x];
   const el = getCellEl(x,y);
-  if(c.state==='open') return;
+  if(c.state==='open' || c.state==='flag') return;
 
-  // 旗中は開けない
-  if(c.state==='flag') return;
-
-  // 初回操作（念のため：開始扱い）
   if(!STATE.running){ startTimer(); }
-
   c.state='open';
   el.classList.remove('covered','flag'); el.classList.add('open');
 
   if(c.isTrap){
-    // 罠：敗北
     el.textContent='✖';
     el.style.color='var(--trap)';
     lose(x,y);
     return;
   }
   STATE.opened++;
-  // 数字描画
   if(c.number>0){
     el.textContent = c.number;
     el.classList.add('n'+c.number);
   }else{
-    el.textContent = ''; // n0
-    // 0は周囲を自動展開（フラッド）
+    el.textContent = '';
     floodOpenZeros(x,y);
   }
-  // 合図開けからの展開のときは、スコア控えめ
-  updateScore(STATE.score + (viaChord? 4 : (c.number===0? 8:6)));
+  updateScore(STATE.score + (viaChord? 4 : (c.number===0? 9:7)));
 
-  // 目標：ゴールを開け、かつ道が安全なら勝利（到達型）
-  if(x===STATE.goal.x && y===STATE.goal.y){
-    win();
-  }
+  if(x===STATE.goal.x && y===STATE.goal.y){ win(); }
 }
-
 function floodOpenZeros(sx,sy){
   const {W,H,cells} = STATE.board;
   const q=[{x:sx,y:sy}], seen=new Set([sx+','+sy]);
   while(q.length){
     const p=q.shift();
     for(const nb of neighbors8(p.x,p.y,W,H)){
-      const key=nb.x+','+nb.y;
-      if(seen.has(key)) continue;
+      const key=nb.x+','+nb.y; if(seen.has(key)) continue;
       const c=cells[nb.y][nb.x];
       if(c.state!=='open' && !c.isTrap){
         c.state='open';
@@ -436,22 +388,19 @@ function floodOpenZeros(sx,sy){
     }
   }
 }
-
 function toggleFlag(x,y){
   if(STATE.lost||STATE.won) return;
   const c=STATE.board.cells[y][x];
   if(c.state==='open') return;
   const el=getCellEl(x,y);
   if(c.state==='flag'){
-    c.state='covered'; el.classList.remove('flag'); STATE.flagsLeft++;
-    updateScore(STATE.score - 1);
+    c.state='covered'; el.classList.remove('flag'); STATE.flagsLeft--; // 旗数は“置かれている数”表示でもOKだが、従来通りで。
   }else{
-    c.state='flag'; el.classList.add('flag'); STATE.flagsLeft--;
-    updateScore(STATE.score + 1);
+    c.state='flag'; el.classList.add('flag'); STATE.flagsLeft++;
   }
-  updateFlagsUI();
+  // 視認性目的で“設置中の旗数”を表示にする
+  elFlags.textContent = `旗 ${STATE.flagsLeft}`;
 }
-
 function chordOpen(x,y){
   const c=STATE.board.cells[y][x];
   if(c.state!=='open' || c.number<=0) return;
@@ -464,7 +413,6 @@ function chordOpen(x,y){
     if(nc.state==='covered') openCell(nb.x,nb.y,true);
   }
 }
-
 function lose(x,y){
   STATE.lost=true; stopTimer();
   revealAll(true, x,y);
@@ -474,93 +422,80 @@ function lose(x,y){
 }
 function win(){
   STATE.won=true; stopTimer();
-  // スコア仕上げ（時間・ルート補正）
   const sec = Math.floor((Date.now()-STATE.startTs)/1000);
   const timeBonus = Math.max(0, 300 - sec)*2;
   updateScore(STATE.score + 1000 + timeBonus);
 
-  // ささやかな演出：盤面のゴールに旗
   const goalEl = getCellEl(STATE.goal.x, STATE.goal.y);
   goalEl.textContent='🏳️‍🌙';
+  goalEl.classList.add('reached'); // ⬅ 到達演出（見やすく）
 
   gtag('event','win',{diff:STATE.diff,seed:STATE.seed,sec,score:STATE.score});
   alert(`潜入成功！ 本丸到達\n時間 ${sec}s / スコア ${STATE.score}`);
 }
-
 function revealAll(showTraps=false, hitX=-1,hitY=-1){
   const {W,H,cells}=STATE.board;
   for(let y=0;y<H;y++){
     for(let x=0;x<W;x++){
-      const c=cells[y][x];
-      const el=getCellEl(x,y);
-      if(showTraps && c.isTrap){
-        el.textContent='※'; el.style.color='var(--trap)'; el.classList.add('open');
-      }else if(c.state!=='open'){
-        // そのまま
-      }
-      if(x===hitX && y===hitY){ el.style.outline='2px solid var(--trap)'; }
+      const c=cells[y][x], el=getCellEl(x,y);
+      if(showTraps && c.isTrap){ el.textContent='※'; el.style.color='var(--trap)'; el.classList.add('open'); }
+      if(x===hitX && y===hitY){ el.style.outline='3px solid var(--trap)'; }
     }
   }
 }
-
-function getCellEl(x,y){
-  return elBoard.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
-}
-
-/* ---------- セルイベント（タップ/長押し/ダブルタップ） ---------- */
 function attachCellHandlers(el){
   let pressTimer=null, longPressed=false, lastTap=0;
-
   function onDown(e){
-    e.preventDefault();
-    longPressed=false;
-    pressTimer = setTimeout(()=>{
-      longPressed=true;
-      const x=+el.dataset.x, y=+el.dataset.y;
-      toggleFlag(x,y);
-      navigator.vibrate && navigator.vibrate(10);
-    }, 420); // 長押し判定
+    e.preventDefault(); longPressed=false;
+    pressTimer=setTimeout(()=>{ longPressed=true; toggleFlag(+el.dataset.x,+el.dataset.y); navigator.vibrate && navigator.vibrate(10); }, 450);
   }
   function onUp(e){
-    e.preventDefault();
-    clearTimeout(pressTimer);
+    e.preventDefault(); clearTimeout(pressTimer);
     const now=Date.now(), delta=now-lastTap; lastTap=now;
     const x=+el.dataset.x, y=+el.dataset.y;
-    if(longPressed) return; // 旗操作済み
-    if(delta<250){
-      // ダブルタップ＝合図開け
-      chordOpen(x,y);
-    }else{
-      openCell(x,y);
-    }
+    if(longPressed) return;
+    if(delta<250){ chordOpen(x,y); } else { openCell(x,y); }
   }
-
   el.addEventListener('touchstart', onDown, {passive:false});
   el.addEventListener('touchend', onUp, {passive:false});
   el.addEventListener('mousedown', onDown);
   el.addEventListener('mouseup', onUp);
-
-  // 右クリックで旗（PC）
   el.addEventListener('contextmenu', (e)=>{ e.preventDefault(); toggleFlag(+el.dataset.x,+el.dataset.y); });
 }
-
-/* ---------- スコア/UI ---------- */
 function updateScore(v){ STATE.score=Math.max(0,Math.floor(v)); elScore.textContent=`得点 ${STATE.score}`; }
 
-/* ---------- 起動時：URLパラメータから再現 ---------- */
+/* 起動・任務 */
+function startNew(){
+  const diff = elDiff.value;
+  const b = newBoard(diff, null);
+  mountBoard(b); startTimer(); updateScore(0);
+  const url = new URL(location.href);
+  url.searchParams.set('d', diff);
+  url.searchParams.set('seed', STATE.seed);
+  history.replaceState(null,'',url.toString());
+  gtag('event','start_game',{diff});
+}
+function startDaily(){
+  const diff = elDiff.value;
+  const today = new Date();
+  const seed = today.getFullYear()+pad(today.getMonth()+1)+pad(today.getDate());
+  const b = newBoard(diff, seed);
+  mountBoard(b); startTimer(); updateScore(0);
+  const url = new URL(location.href);
+  url.searchParams.set('d', diff); url.searchParams.set('seed', seed); url.searchParams.set('mission','1');
+  history.replaceState(null,'',url.toString());
+  gtag('event','daily_mission',{diff,seed});
+}
 (function init(){
   const url=new URL(location.href);
   const d = url.searchParams.get('d') || 'normal';
   const seed = url.searchParams.get('seed');
   elDiff.value = DIFFS[d]? d : 'normal';
   const b = newBoard(elDiff.value, seed);
-  mountBoard(b);
-  startTimer();
-  updateFlagsUI();
-  updateScore(0);
+  mountBoard(b); startTimer(); updateScore(0);
 })();
 
-/* ---------- 共有（X/Twitter） ---------- */
+/* 共有 */
 function shareToX(){
   const url=new URL(location.href);
   url.searchParams.set('d', STATE.diff);
@@ -573,8 +508,7 @@ function shareToX(){
 ${url.toString()}
 
 @kkp_webninja`;
-  const link = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-  window.open(link,'_blank');
+  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,'_blank');
 }
 </script>
 </body>
