@@ -3,237 +3,137 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>忍者潜入の術 🏯</title>
+<title>忍者潜入🏯</title>
 <style>
   body {
-    font-family: "Hiragino Kaku Gothic ProN", sans-serif;
+    font-family: sans-serif;
     text-align: center;
-    background: #f4f1e9 url('https://upload.wikimedia.org/wikipedia/commons/6/64/Japanese_pattern.svg');
-    background-size: cover;
-    margin: 0;
-    padding: 0;
+    background: #f4f4f4;
   }
-  h1 {
-    margin: 0.5em 0;
-    color: #222;
-    text-shadow: 1px 1px 2px #fff;
-  }
+  h1 { margin: 0.5em 0; }
   #board {
     display: grid;
     grid-template-columns: repeat(8, 40px);
-    grid-gap: 2px;
     justify-content: center;
-    margin: 1em auto;
+    gap: 2px;
+    margin: 10px auto;
   }
   .cell {
     width: 40px;
     height: 40px;
-    background: #d4c89f;
-    border: 1px solid #999;
-    font-size: 18px;
-    line-height: 40px;
+    background: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     user-select: none;
-  }
-  .cell.open {
-    background: #fff8dc;
-    cursor: default;
-  }
-  .cell.safe {
-    background: #c1e1c1;
-  }
-  .cell.bomb {
-    background: #e57373;
-    color: white;
-  }
-  .cell.castle {
-    background: #ffd54f;
     font-weight: bold;
   }
-  #message {
-    font-size: 1.2em;
-    margin-top: 0.5em;
-    font-weight: bold;
-  }
-  button {
-    margin-top: 1em;
-    padding: 0.5em 1em;
-    font-size: 1em;
-    border-radius: 8px;
-    border: none;
-    background: #6b4226;
-    color: white;
-    cursor: pointer;
-  }
-  button:hover {
-    background: #8b5e3c;
-  }
+  .safe { background: #fff; }
+  .trap { background: #e57373; color: #fff; }
+  .castle { background: gold; }
+  .start { background: #64b5f6; }
 </style>
 </head>
 <body>
-<h1>忍者潜入の術 🏯</h1>
+
+<h1>忍者潜入🏯</h1>
+<p>左端から🏯まで安全ルートを開けろ！斜めはつながらない。</p>
 <div id="board"></div>
-<div id="message"></div>
-<button onclick="init()">🔄 もう一度挑戦</button>
+<p id="message"></p>
+<button onclick="init()">もう一度</button>
 
 <script>
 const size = 8;
-const bombCount = 10; // 爆弾の数
-let board = [];
-let revealed = [];
-let castlePos = {x: size - 1, y: Math.floor(Math.random() * size)}; // 右端の🏯
+const traps = 10; // 罠の数
+let board, revealed;
+const castlePos = {x: size-1, y: Math.floor(size/2)};
 
 function init() {
-  board = Array.from({length: size}, () => Array(size).fill(0));
-  revealed = Array.from({length: size}, () => Array(size).fill(false));
-  document.getElementById("message").textContent = "";
+  board = Array.from({length:size},()=>Array(size).fill(0));
+  revealed = Array.from({length:size},()=>Array(size).fill(false));
 
-  // まずルートを作る（必ず左端から城まで）
-  let path = generatePath();
-
-  // 爆弾配置（ルート以外）
-  let bombsPlaced = 0;
-  while (bombsPlaced < bombCount) {
-    let x = Math.floor(Math.random() * size);
-    let y = Math.floor(Math.random() * size);
-    if (!path.some(p => p.x === x && p.y === y) && !(x === castlePos.x && y === castlePos.y) && board[y][x] !== "B") {
-      board[y][x] = "B";
-      bombsPlaced++;
-    }
-  }
-
-  // 数字割り当て
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      if (board[y][x] !== "B") {
-        board[y][x] = countBombs(x, y);
-      }
-    }
+  // 罠をランダム配置（城と左端は除外）
+  let placed = 0;
+  while (placed < traps) {
+    let x = Math.floor(Math.random()*size);
+    let y = Math.floor(Math.random()*size);
+    if ((x===castlePos.x && y===castlePos.y) || x===0) continue;
+    if (board[y][x] === "B") continue;
+    board[y][x] = "B";
+    placed++;
   }
 
   drawBoard();
-}
-
-function generatePath() {
-  let path = [];
-  let x = 0;
-  let y = Math.floor(Math.random() * size);
-  path.push({x, y});
-  while (x < size - 1) {
-    // 右 or 上 or 下へ（上下左右のみ）
-    let moves = [];
-    if (x < size - 1) moves.push({x: x + 1, y});
-    if (y > 0) moves.push({x, y: y - 1});
-    if (y < size - 1) moves.push({x, y: y + 1});
-    let next = moves[Math.floor(Math.random() * moves.length)];
-    if (!path.some(p => p.x === next.x && p.y === next.y)) {
-      x = next.x;
-      y = next.y;
-      path.push({x, y});
-    }
-  }
-  // 城の位置をルート終点に合わせる
-  castlePos = {x, y};
-  return path;
-}
-
-function countBombs(x, y) {
-  let count = 0;
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      if (dx === 0 && dy === 0) continue;
-      let nx = x + dx;
-      let ny = y + dy;
-      if (nx >= 0 && nx < size && ny >= 0 && ny < size && board[ny][nx] === "B") {
-        count++;
-      }
-    }
-  }
-  return count;
 }
 
 function drawBoard() {
   const boardDiv = document.getElementById("board");
   boardDiv.innerHTML = "";
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
+  for (let y=0; y<size; y++) {
+    for (let x=0; x<size; x++) {
       const cell = document.createElement("div");
       cell.className = "cell";
-      if (x === castlePos.x && y === castlePos.y) {
-        cell.classList.add("castle");
+      if (x===0) cell.classList.add("start");
+      if (x===castlePos.x && y===castlePos.y) {
         cell.textContent = "🏯";
+        cell.classList.add("castle");
       }
       if (revealed[y][x]) {
-        cell.classList.add("open");
-        if (board[y][x] === "B") {
-          cell.classList.add("bomb");
-          cell.textContent = "💣";
-        } else if (!(x === castlePos.x && y === castlePos.y) && board[y][x] > 0) {
-          cell.textContent = board[y][x];
-        } else if (!(x === castlePos.x && y === castlePos.y)) {
-          cell.classList.add("safe");
-        }
+        if (board[y][x] === "B") cell.classList.add("trap");
+        else cell.classList.add("safe");
       }
-      cell.addEventListener("click", () => openCell(x, y));
+      cell.addEventListener("click", ()=>openCell(x,y));
       boardDiv.appendChild(cell);
     }
   }
 }
 
-function openCell(x, y) {
+function openCell(x,y) {
   if (revealed[y][x]) return;
   revealed[y][x] = true;
   if (board[y][x] === "B") {
-    gameOver(false);
-    return;
-  }
-  if (x === castlePos.x && y === castlePos.y && checkConnected()) {
-    gameOver(true);
+    document.getElementById("message").textContent = "💥 罠にかかった！";
+    revealAll();
     return;
   }
   drawBoard();
+  if (checkClear()) {
+    document.getElementById("message").textContent = "🎉 潜入成功！";
+  }
 }
 
-function checkConnected() {
-  // 左端の開いたマスから🏯まで上下左右で到達できるか
-  let visited = Array.from({length: size}, () => Array(size).fill(false));
-  let queue = [];
-  for (let y = 0; y < size; y++) {
+function revealAll() {
+  for (let y=0; y<size; y++) for (let x=0; x<size; x++) revealed[y][x] = true;
+  drawBoard();
+}
+
+// 左端から🏯まで上下左右のみでつながっているかを確認
+function checkClear() {
+  const visited = Array.from({length:size},()=>Array(size).fill(false));
+  const q = [];
+  for (let y=0; y<size; y++) {
     if (revealed[y][0] && board[y][0] !== "B") {
-      queue.push({x: 0, y});
+      q.push({x:0,y});
       visited[y][0] = true;
     }
   }
-  while (queue.length) {
-    let {x, y} = queue.shift();
+  while (q.length) {
+    const {x,y} = q.shift();
     if (x === castlePos.x && y === castlePos.y) return true;
-    [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => {
-      let nx = x + dx, ny = y + dy;
-      if (nx >= 0 && nx < size && ny >= 0 && ny < size && !visited[ny][nx] && revealed[ny][nx] && board[ny][nx] !== "B") {
+    for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const nx = x+dx, ny = y+dy;
+      if (nx>=0 && nx<size && ny>=0 && ny<size && !visited[ny][nx] && revealed[ny][nx] && board[ny][nx] !== "B") {
         visited[ny][nx] = true;
-        queue.push({x: nx, y: ny});
+        q.push({x:nx,y:ny});
       }
-    });
+    }
   }
   return false;
 }
 
-function gameOver(win) {
-  if (win) {
-    document.getElementById("message").textContent = "🎉 潜入成功！本丸に到達！";
-  } else {
-    document.getElementById("message").textContent = "💥 爆発！潜入失敗…";
-  }
-  // 全マス開示
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      revealed[y][x] = true;
-    }
-  }
-  drawBoard();
-}
-
 init();
 </script>
+
 </body>
 </html>
