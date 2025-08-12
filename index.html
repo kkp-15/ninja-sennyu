@@ -4,41 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <title>忍者潜入の術 🗡️🏯</title>
-
-<!-- ✅ SEO -->
-<meta name="description" content="罠を読み解き、本丸“まで”の潜入ルートを開けたらクリア。マインスイーパー風の到達型パズル『忍者潜入の術』。日替わり任務・難易度切替・Xシェア対応。" />
-<meta name="keywords" content="マインスイーパー, 忍者, パズル, 論理, 無料, スマホ, 到達型, Webアプリ" />
-
-<!-- ✅ OGP / X -->
-<meta property="og:title" content="忍者潜入の術" />
-<meta property="og:description" content="罠を読み解き、本丸“まで”の潜入ルートを開けたらクリア！日替わり任務あり。" />
-<meta property="og:image" content="card.png" />
-<meta property="og:url" content="https://example.com/" />
-<meta property="og:type" content="website" />
-<meta name="twitter:card" content="summary_large_image" />
-
-<link rel="icon" href="favicon.ico" />
-
-<!-- ✅ Google Analytics（いつもの） -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-2LM85GJN0L"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){ dataLayer.push(arguments); }
-  gtag('js', new Date());
-  gtag('config', 'G-2LM85GJN0L');
-</script>
-
 <style>
   :root{
     --bg:#0a0f1c; --panel:#111a2e; --accent:#8bd3ff; --text:#eef3ff; --muted:#a8b7d3;
     --cell:40px;
-    /* 未オープン（押せる） */
-    --cell-covered:#16264a; 
-    --cell-covered-border:#3b5a93;
-    --cell-covered-hover:#1d3564;
-    /* オープン（押し終わり） */
-    --cell-open:#0f1a33; 
-    --cell-open-border:#2e4677;
+    --cell-covered:#16264a; --cell-covered-border:#3b5a93; --cell-covered-hover:#1d3564;
+    --cell-open:#0f1a33; --cell-open-border:#2e4677;
     --flag:#ffcc66; --trap:#ff6b6b;
   }
   *{ box-sizing:border-box }
@@ -49,32 +20,18 @@
     display:flex; flex-direction:column; align-items:center;
   }
   header{ width:100%; max-width:980px; padding:16px 16px 0; text-align:center }
-  h1{ margin:6px 0 8px; font-size:1.7rem; letter-spacing:.02em }
-  .sub{ color:var(--muted); font-size:.95rem }
-
-  .bar{
-    width:100%; max-width:980px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:center;
-    padding:12px 16px;
-  }
+  h1{ margin:6px 0 8px; font-size:1.7rem } .sub{ color:var(--muted); font-size:.95rem }
+  .bar{ width:100%; max-width:980px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:center; padding:12px 16px; }
   select,button{
     background:var(--panel); color:var(--text); border:2px solid #23365a; border-radius:14px;
-    padding:10px 14px; font-size:1rem; font-weight:600;
-    box-shadow:0 3px 10px rgba(0,0,0,.35);
+    padding:10px 14px; font-size:1rem; font-weight:600; box-shadow:0 3px 10px rgba(0,0,0,.35);
   }
-  button:hover{ filter:brightness(1.08) }
-  button:active{ transform:translateY(1px) }
-  .badge{
-    padding:10px 14px; border-radius:12px; background:#0e1a39; color:#d8e7ff; border:2px solid #2a4272;
-    min-width:92px; text-align:center; font-weight:700; letter-spacing:.04em
-  }
-
+  .badge{ padding:10px 14px; border-radius:12px; background:#0e1a39; color:#d8e7ff; border:2px solid #2a4272; min-width:92px; text-align:center; font-weight:700 }
   #boardWrap{ width:100%; max-width:980px; flex:1; display:flex; align-items:center; justify-content:center; padding:8px 16px 16px }
   #board{
     display:grid; gap:6px; touch-action:manipulation; background:#0c1530; padding:12px; border-radius:18px; border:2px solid #243a64;
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.05), 0 14px 38px rgba(0,0,0,.45);
   }
-
-  /* ===== マスの視覚差（未オープン/オープン） ===== */
   .cell{
     width:var(--cell); height:var(--cell); display:flex; align-items:center; justify-content:center;
     user-select:none; line-height:1; position:relative;
@@ -89,78 +46,29 @@
     cursor:pointer;
   }
   .cell.covered:hover{ background:var(--cell-covered-hover); }
-  .cell.covered.interactable{
-    box-shadow:0 2px 0 rgba(0,0,0,.35), 0 4px 12px rgba(0,0,0,.35), 0 0 0 2px rgba(139,211,255,.25), inset 0 0 0 1px rgba(255,255,255,.06);
-  }
   .cell.flag{ cursor:default; }
-  .cell.flag::after{
-    content:"⚑"; position:absolute; font-size:calc(var(--cell) * 0.55); color:var(--flag);
-    text-shadow:0 0 8px rgba(255,204,102,.45);
-  }
-
+  .cell.flag::after{ content:"⚑"; position:absolute; font-size:calc(var(--cell) * 0.55); color:var(--flag); text-shadow:0 0 8px rgba(255,204,102,.45); }
   .cell.open{
     background:linear-gradient(180deg,var(--cell-open), #0a1430);
     border:2px solid var(--cell-open-border);
     box-shadow:inset 0 2px 8px rgba(0,0,0,.45);
-    cursor:default;
-    filter:saturate(.92) brightness(.98);
-  }
-  .cell.open.is-number{
-    cursor:pointer;
-    box-shadow:inset 0 2px 8px rgba(0,0,0,.45), 0 0 0 2px rgba(139,211,255,.18);
+    cursor:default; filter:saturate(.92) brightness(.98);
   }
   .cell.goal::after{ content:"🏯"; position:absolute; font-size:calc(var(--cell) * 0.55) }
   .cell.start::after{ content:"⛩️"; position:absolute; font-size:calc(var(--cell) * 0.5) }
-
-  /* 数字色（色弱配慮・高コントラスト） */
-  .n0{color:#b7c7e6} .n1{color:#74b6ff} .n2{color:#ffb354} .n3{color:#c3a1ff}
-  .n4{color:#89ddff} .n5{color:#ffd95e} .n6{color:#6fe8a1} .n7{color:#ff9090} .n8{color:#ffffff}
-
-  .lost{ animation:lostFlash .15s 3 }
-  @keyframes lostFlash{ 0%{filter:none} 50%{filter:hue-rotate(-20deg) brightness(1.4)} 100%{filter:none} }
-
-  /* 到達（突破）演出 */
-  .cell.goal.reached{
-    background:linear-gradient(180deg,#ffd700,#ffb300)!important;
-    border-color:#ffec6e!important; color:#000!important;
-    animation:glow 1.2s ease-in-out infinite alternate;
-  }
+  .n0{color:#b7c7e6} .n1{color:#74b6ff} .n2{color:#ffb354} .n3{color:#c3a1ff} .n4{color:#89ddff} .n5{color:#ffd95e} .n6{color:#6fe8a1} .n7{color:#ff9090} .n8{color:#ffffff}
+  .lost{ animation:lostFlash .15s 3 } @keyframes lostFlash{ 0%{filter:none} 50%{filter:hue-rotate(-20deg) brightness(1.4)} 100%{filter:none} }
+  .cell.goal.reached{ background:linear-gradient(180deg,#ffd700,#ffb300)!important; border-color:#ffec6e!important; color:#000!important; animation:glow 1.2s ease-in-out infinite alternate; }
   @keyframes glow{ 0%{ box-shadow:0 0 8px rgba(255,215,0,.5) } 100%{ box-shadow:0 0 18px rgba(255,215,0,.95) } }
-
   footer{ width:100%; max-width:980px; padding:16px; text-align:center; color:var(--muted) }
   #footer{ border-top:1px solid #243a64; margin-top:12px; padding-top:12px; font-size:.98rem }
   a{ color:var(--accent); text-decoration:none } a:hover{ text-decoration:underline }
-
-  /* ▼▼ 忍術指南書（モーダル） ▼▼ */
-  .modal-backdrop{
-    position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; padding:18px; z-index:50;
-  }
-  .modal{
-    width:min(680px, 100%); max-height:85vh; overflow:auto;
-    background:#0f1a33; border:2px solid #2b4270; border-radius:16px; box-shadow:0 18px 48px rgba(0,0,0,.6);
-  }
-  .modal header{
-    position:sticky; top:0; background:#0f1a33; padding:14px 16px; border-bottom:1px solid #23365a;
-  }
-  .modal h2{ margin:0; font-size:1.3rem }
-  .modal .body{ padding:14px 16px 18px; color:#dde7ff; line-height:1.75 }
-  .modal .body h3{ margin:14px 0 6px; font-size:1.05rem; color:#9fd1ff }
-  .modal .body ul{ margin:6px 0 12px 1.2em }
-  .modal footer{ padding:12px 16px 16px }
-  .modal .closeBtn{ width:100%; padding:12px 14px; border-radius:12px; background:#132144; color:#eaf1ff; border:2px solid #2b4270; font-weight:700 }
-  .show{ display:flex }
-
-  @media (max-width:420px){
-    .badge{ min-width:88px }
-  }
 </style>
 </head>
 <body>
-
 <header>
   <h1>忍者潜入の術 🗡️🏯</h1>
-  <div class="sub">罠を読み解き、左端の門から右端の本丸<span aria-hidden="true">“まで”</span>潜入ルートを開けろ。</div>
-
+  <div class="sub">罠を読み解き、左端の門から右端の本丸“まで”潜入ルートを開けろ。</div>
   <div class="bar">
     <label>難易度：
       <select id="difficulty">
@@ -175,7 +83,6 @@
     <div class="badge" id="flags">旗 0</div>
     <div class="badge" id="score">得点 0</div>
     <button id="shareBtn">Xで共有</button>
-    <button id="helpBtn" aria-haspopup="dialog" aria-controls="helpModal">忍術指南書</button>
   </div>
 </header>
 
@@ -191,72 +98,58 @@
   </div>
 </footer>
 
-<!-- 📜 忍術指南書（モーダル） -->
-<div id="helpBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
-  <div class="modal" id="helpModal">
-    <header><h2 id="helpTitle">忍術指南書（ルール）</h2></header>
-    <div class="body">
-      <h3>🎯 目的</h3>
-      <ul>
-        <li><b>門（⛩️）から本丸（🏯）“まで”の安全な潜入ルート</b>を<b>開いた状態でつなげたら</b>クリア。</li>
-        <li>本丸マス自体を開かなくても、隣接まで到達できていればOK。</li>
-      </ul>
-      <h3>🕹 操作</h3>
-      <ul>
-        <li><b>タップ</b>：マスを開く</li>
-        <li><b>長押し（約0.45秒）</b>：旗を立てる（罠と推定）</li>
-        <li><b>数字マスをダブルタップ</b>：数字＝周囲の旗数で一括オープン</li>
-      </ul>
-      <h3>🧠 数字の意味</h3>
-      <ul><li>数字は、そのマスの<b>周囲8マスにある罠の数</b>。</li></ul>
-      <h3>💣 罠（失敗）</h3>
-      <ul><li>罠を開くと即失敗。</li></ul>
-      <h3>🏆 クリア演出</h3>
-      <ul><li>到達時に🏯が金色に点滅。</li></ul>
-    </div>
-    <footer><button class="closeBtn" id="helpCloseBtn">閉じる</button></footer>
-  </div>
-</div>
-
 <script>
-/* ===== 忍者潜入の術 - “ルートを開けたらOK”版 ===== */
+/* --- 安全なgtagシム（ブロック時でも落ちない） --- */
+window.gtag = window.gtag || function(){};
+
+/* --- 小ユーティリティ --- */
 function mulberry32(a){ return function(){ var t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; } }
 function strToSeed(str){ let h=2166136261>>>0; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
 function pad(n){return n.toString().padStart(2,'0')}
-
-const DIFFS = { easy:{w:9,h:9,density:0.12}, normal:{w:12,h:12,density:0.15}, hard:{w:16,h:16,density:0.18} };
-const STATE = { board:null, rng:Math.random, running:false, startTs:0, timerId:null, flagsLeft:0, opened:0, lost:false, won:false, seed:'', diff:'normal', start:{x:0,y:0}, goal:{x:0,y:0}, score:0 };
-
-const elBoard = document.getElementById('board');
-const elTimer = document.getElementById('timer');
-const elFlags = document.getElementById('flags');
-const elScore = document.getElementById('score');
-const elDiff  = document.getElementById('difficulty');
-
-document.getElementById('newGameBtn').addEventListener('click', ()=>startNew());
-document.getElementById('dailyBtn').addEventListener('click', ()=>startDaily());
-document.getElementById('shareBtn').addEventListener('click', shareToX);
-elDiff.addEventListener('change', ()=>startNew());
-
-/* --- 忍術指南書モーダル --- */
-const helpBtn = document.getElementById('helpBtn');
-const helpBackdrop = document.getElementById('helpBackdrop');
-const helpCloseBtn = document.getElementById('helpCloseBtn');
-helpBtn.addEventListener('click', ()=>{ helpBackdrop.classList.add('show'); helpCloseBtn.focus(); });
-helpCloseBtn.addEventListener('click', ()=>{ helpBackdrop.classList.remove('show'); helpBtn.focus(); });
-helpBackdrop.addEventListener('click', (e)=>{ if(e.target===helpBackdrop){ helpBackdrop.classList.remove('show'); helpBtn.focus(); }});
-document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && helpBackdrop.classList.contains('show')){ helpBackdrop.classList.remove('show'); helpBtn.focus(); }});
-
-/* --- 盤面生成 --- */
 function neighbors8(x,y,W,H){
   const out=[]; for(let dy=-1; dy<=1; dy++){ for(let dx=-1; dx<=1; dx++){
     if(dx===0 && dy===0) continue; const nx=x+dx, ny=y+dy; if(nx>=0 && nx<W && ny>=0 && ny<H) out.push({x:nx,y:ny});
   }} return out;
 }
+
+/* --- 定数/状態 --- */
+const DIFFS = { easy:{w:9,h:9,density:0.12}, normal:{w:12,h:12,density:0.15}, hard:{w:16,h:16,density:0.18} };
+const STATE = { board:null, rng:Math.random, running:false, startTs:0, timerId:null, flagsLeft:0, opened:0, lost:false, won:false, seed:'', diff:'normal', start:{x:0,y:0}, goal:{x:0,y:0}, score:0 };
+
+/* --- DOM参照は init 後に安全取得 --- */
+let elBoard, elTimer, elFlags, elScore, elDiff;
+
+/* ================== 初期化 ================== */
+window.addEventListener('DOMContentLoaded', init);
+
+function init(){
+  elBoard = document.getElementById('board');
+  elTimer = document.getElementById('timer');
+  elFlags = document.getElementById('flags');
+  elScore = document.getElementById('score');
+  elDiff  = document.getElementById('difficulty');
+
+  document.getElementById('newGameBtn').addEventListener('click', startNew);
+  document.getElementById('dailyBtn').addEventListener('click', startDaily);
+  document.getElementById('shareBtn').addEventListener('click', shareToX);
+  elDiff.addEventListener('change', startNew);
+
+  // URL引き継ぎ
+  const url=new URL(location.href);
+  const d = url.searchParams.get('d') || 'normal';
+  const seed = url.searchParams.get('seed');
+  elDiff.value = DIFFS[d]? d : 'normal';
+
+  const b = newBoard(elDiff.value, seed);
+  mountBoard(b); startTimer(); updateScore(0);
+}
+
+/* ================== 盤面生成 ================== */
 function newBoard(diffKey, seedStr){
   const diff = DIFFS[diffKey];
   const seed = seedStr || (Date.now().toString(36));
-  STATE.rng = mulberry32(strToSeed(seed)); STATE.seed = seed; STATE.diff = diffKey; STATE.lost=false; STATE.won=false; STATE.score=0;
+  STATE.rng = mulberry32(strToSeed(seed));
+  STATE.seed = seed; STATE.diff = diffKey; STATE.lost=false; STATE.won=false; STATE.score=0;
 
   const W=diff.w, H=diff.h;
   const cells = Array.from({length:H},(_,y)=>Array.from({length:W},(_,x)=>({ x,y,isTrap:false,number:0,state:'covered' })));
@@ -317,7 +210,7 @@ function reachableSafe(cells,W,H,start,goal){
   } return false;
 }
 
-/* --- 描画・UI --- */
+/* ================== 描画/UI ================== */
 function mountBoard({W,H,cells}){
   STATE.board={W,H,cells};
   STATE.flagsLeft = 0; STATE.opened=0; STATE.running=false; STATE.lost=false; STATE.won=false;
@@ -332,7 +225,7 @@ function mountBoard({W,H,cells}){
     for(let x=0;x<W;x++){
       const c=cells[y][x];
       const div=document.createElement('div');
-      div.className='cell covered interactable';
+      div.className='cell covered';
       div.setAttribute('role','gridcell');
       div.dataset.x=x; div.dataset.y=y;
       if(x===STATE.start.x && y===STATE.start.y) div.classList.add('start');
@@ -344,8 +237,11 @@ function mountBoard({W,H,cells}){
   updateFlagsUI();
 }
 function updateFlagsUI(){ elFlags.textContent = `旗 ${STATE.flagsLeft}`; }
-function startTimer(){ clearInterval(STATE.timerId); STATE.startTs = Date.now(); STATE.running=true;
-  STATE.timerId=setInterval(()=>{ if(!STATE.running) return;
+function startTimer(){
+  clearInterval(STATE.timerId);
+  STATE.startTs = Date.now(); STATE.running=true;
+  STATE.timerId=setInterval(()=>{
+    if(!STATE.running) return;
     const s = Math.floor((Date.now()-STATE.startTs)/1000);
     elTimer.textContent = `${pad(Math.floor(s/60))}:${pad(s%60)}`;
   }, 200);
@@ -353,31 +249,21 @@ function startTimer(){ clearInterval(STATE.timerId); STATE.startTs = Date.now();
 function stopTimer(){ STATE.running=false; clearInterval(STATE.timerId); }
 function getCellEl(x,y){ return elBoard.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`); }
 
-/* --- ルート到達判定（新ルール） --- */
+/* ================== 新ルールの勝利判定 ================== */
 function isRouteOpenToGoal(){
   const {W,H,cells}=STATE.board;
   const s = STATE.start, g = STATE.goal;
+  if(cells[s.y][s.x].state!=='open') return false; // スタートが開いていない
 
-  // スタートが開かれていなければ“潜入開始していない”とみなす
-  if(cells[s.y][s.x].state!=='open') return false;
-
-  // BFS：開かれた安全マスのみで探索
   const q=[{x:s.x,y:s.y}], seen=new Set([s.x+','+s.y]);
   const goalKey = g.x+','+g.y;
   const goalNeighbors = neighbors8(g.x,g.y,W,H).map(p=>p.x+','+p.y);
   while(q.length){
-    const p=q.shift();
-    const key=p.x+','+p.y;
-
-    // 1) 本丸マス自体が開かれていて到達できた
-    if(key===goalKey && cells[g.y][g.x].state==='open') return true;
-
-    // 2) 本丸の隣接マスに到達した（goalは未オープンでもOK）
-    if(goalNeighbors.includes(key)) return true;
-
+    const p=q.shift(); const key=p.x+','+p.y;
+    if(key===goalKey && cells[g.y][g.x].state==='open') return true; // 🏯自体が開けて到達
+    if(goalNeighbors.includes(key)) return true; // 🏯の隣接まで到達
     for(const nb of neighbors8(p.x,p.y,W,H)){
-      const nbKey=nb.x+','+nb.y;
-      const c=cells[nb.y][nb.x];
+      const nbKey=nb.x+','+nb.y; const c=cells[nb.y][nb.x];
       if(seen.has(nbKey)) continue;
       if(c.state==='open' && !c.isTrap){ seen.add(nbKey); q.push(nb); }
     }
@@ -385,7 +271,7 @@ function isRouteOpenToGoal(){
   return false;
 }
 
-/* --- ゲーム操作 --- */
+/* ================== 操作 ================== */
 function openCell(x,y, viaChord=false){
   if(STATE.lost||STATE.won) return;
   const c = STATE.board.cells[y][x]; const el = getCellEl(x,y);
@@ -393,24 +279,18 @@ function openCell(x,y, viaChord=false){
   if(!STATE.running){ startTimer(); }
 
   c.state='open';
-  el.classList.remove('covered','flag','interactable');
-  el.classList.add('open');
+  el.classList.remove('covered','flag'); el.classList.add('open');
 
   if(c.isTrap){
     el.textContent='✖'; el.style.color='var(--trap)'; lose(x,y); return;
   }
   STATE.opened++;
-  if(c.number>0){
-    el.textContent=c.number;
-    el.classList.add('n'+c.number, 'is-number');
-  }else{
-    el.textContent='';
-    floodOpenZeros(x,y);
-  }
+  if(c.number>0){ el.textContent=c.number; el.classList.add('n'+c.number); }
+  else{ el.textContent=''; floodOpenZeros(x,y); }
+
   updateScore(STATE.score + (viaChord? 4 : (c.number===0? 9:7)));
 
-  // ★ 新ルール：ルートが繋がったら即クリア
-  if(isRouteOpenToGoal()){ win(); }
+  if(isRouteOpenToGoal()){ win(); } // ★ ルート到達で勝利
 }
 function floodOpenZeros(sx,sy){
   const {W,H,cells} = STATE.board;
@@ -423,27 +303,22 @@ function floodOpenZeros(sx,sy){
       if(c.state!=='open' && !c.isTrap){
         c.state='open';
         const el=getCellEl(nb.x,nb.y);
-        el.classList.remove('covered','flag','interactable'); 
-        el.classList.add('open');
-        if(c.number>0){ el.textContent=c.number; el.classList.add('n'+c.number,'is-number'); }
+        el.classList.remove('covered','flag'); el.classList.add('open');
+        if(c.number>0){ el.textContent=c.number; el.classList.add('n'+c.number); }
         else{ el.textContent=''; q.push(nb); }
         STATE.opened++;
       }
       seen.add(key);
     }
   }
-  // 0連鎖後も勝利チェック
   if(isRouteOpenToGoal()){ win(); }
 }
 function toggleFlag(x,y){
   if(STATE.lost||STATE.won) return;
   const c=STATE.board.cells[y][x]; if(c.state==='open') return;
   const el=getCellEl(x,y);
-  if(c.state==='flag'){
-    c.state='covered'; el.classList.remove('flag'); el.classList.add('interactable'); STATE.flagsLeft--;
-  }else{
-    c.state='flag'; el.classList.add('flag'); el.classList.remove('interactable'); STATE.flagsLeft++;
-  }
+  if(c.state==='flag'){ c.state='covered'; el.classList.remove('flag'); STATE.flagsLeft--; }
+  else{ c.state='flag'; el.classList.add('flag'); STATE.flagsLeft++; }
   updateFlagsUI();
 }
 function chordOpen(x,y){
@@ -452,7 +327,6 @@ function chordOpen(x,y){
   const flags = around.filter(p=>cells[p.y][p.x].state==='flag').length;
   if(flags!==c.number) return;
   for(const nb of around){ const nc=cells[nb.y][nb.x]; if(nc.state==='covered') openCell(nb.x,nb.y,true); }
-  // 合図開け後も勝利チェック（openCell内で勝利チェック済み）
 }
 function lose(x,y){
   STATE.lost=true; stopTimer(); revealAll(true, x,y);
@@ -460,30 +334,25 @@ function lose(x,y){
   gtag('event','lose',{diff:STATE.diff,seed:STATE.seed});
 }
 function win(){
-  if(STATE.won) return;
-  STATE.won=true; stopTimer();
+  if(STATE.won) return; STATE.won=true; stopTimer();
   const sec = Math.floor((Date.now()-STATE.startTs)/1000);
   const timeBonus = Math.max(0, 300 - sec)*2;
   updateScore(STATE.score + 1000 + timeBonus);
-
-  // 本丸を祝福演出（未オープンでもOKで光らせる）
   const goalEl = getCellEl(STATE.goal.x, STATE.goal.y);
-  goalEl.classList.add('reached');
-  if(goalEl.textContent==='') goalEl.textContent='🏯';
-
-  gtag('event','win',{diff:STATE.diff,seed:STATE.seed,sec,score:STATE.score});
+  goalEl.classList.add('reached'); if(goalEl.textContent==='') goalEl.textContent='🏯';
   alert(`潜入成功！ 本丸までのルート確保\n時間 ${sec}s / スコア ${STATE.score}`);
+  gtag('event','win',{diff:STATE.diff,seed:STATE.seed,sec,score:STATE.score});
 }
 function revealAll(showTraps=false, hitX=-1,hitY=-1){
   const {W,H,cells}=STATE.board;
   for(let y=0;y<H;y++){ for(let x=0;x<W;x++){
     const c=cells[y][x], el=getCellEl(x,y);
-    if(showTraps && c.isTrap){ el.textContent='※'; el.style.color='var(--trap)'; el.classList.add('open'); el.classList.remove('covered','interactable'); }
+    if(showTraps && c.isTrap){ el.textContent='※'; el.style.color='var(--trap)'; el.classList.add('open'); }
     if(x===hitX && y===hitY){ el.style.outline='3px solid var(--trap)'; }
   }}
 }
 
-/* --- 入力ハンドラ --- */
+/* 入力ハンドラ */
 function attachCellHandlers(el){
   let pressTimer=null, longPressed=false, lastTap=0;
   function onDown(e){ e.preventDefault(); longPressed=false;
@@ -491,5 +360,42 @@ function attachCellHandlers(el){
   }
   function onUp(e){ e.preventDefault(); clearTimeout(pressTimer);
     const now=Date.now(), delta=now-lastTap; lastTap=now; const x=+el.dataset.x, y=+el.dataset.y;
-    if(longPressed) return;
-    if(delta<250){ chordOpen(x,y); } else { openCe
+    if(longPressed) return; if(delta<250){ chordOpen(x,y); } else { openCell(x,y); }
+  }
+  el.addEventListener('touchstart', onDown, {passive:false});
+  el.addEventListener('touchend', onUp, {passive:false});
+  el.addEventListener('mousedown', onDown);
+  el.addEventListener('mouseup', onUp);
+  el.addEventListener('contextmenu', (e)=>{ e.preventDefault(); toggleFlag(+el.dataset.x,+el.dataset.y); });
+}
+
+/* スコア/UI */
+function updateScore(v){ STATE.score=Math.max(0,Math.floor(v)); elScore.textContent=`得点 ${STATE.score}`; }
+function startNew(){
+  const diff = elDiff.value; const b = newBoard(diff, null);
+  mountBoard(b); startTimer(); updateScore(0);
+  const url = new URL(location.href); url.searchParams.set('d', diff); url.searchParams.set('seed', STATE.seed);
+  history.replaceState(null,'',url.toString()); gtag('event','start_game',{diff});
+}
+function startDaily(){
+  const diff = elDiff.value; const today = new Date();
+  const seed = today.getFullYear()+pad(today.getMonth()+1)+pad(today.getDate());
+  const b = newBoard(diff, seed); mountBoard(b); startTimer(); updateScore(0);
+  const url = new URL(location.href); url.searchParams.set('d', diff); url.searchParams.set('seed', seed); url.searchParams.set('mission','1');
+  history.replaceState(null,'',url.toString()); gtag('event','daily_mission',{diff,seed});
+}
+function shareToX(){
+  const url=new URL(location.href); url.searchParams.set('d', STATE.diff); url.searchParams.set('seed', STATE.seed);
+  const sec = Math.floor((Date.now()-STATE.startTs)/1000);
+  const text =
+`忍者潜入の術
+本丸“まで”${sec}秒 / スコア${STATE.score}
+#忍者潜入 #web忍者の本丸
+${url.toString()}
+
+@kkp_webninja`;
+  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,'_blank');
+}
+</script>
+</body>
+</html>
