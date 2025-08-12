@@ -1,131 +1,165 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>忍者潜入🏯</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>忍者潜入🏯 シンプル8x8</title>
 <style>
-  body {
-    font-family: sans-serif;
-    text-align: center;
-    background: #f4f4f4;
-  }
-  h1 { margin: 0.5em 0; }
-  #board {
-    display: grid;
-    grid-template-columns: repeat(8, 40px);
-    justify-content: center;
-    gap: 2px;
-    margin: 10px auto;
-  }
-  .cell {
-    width: 40px;
-    height: 40px;
-    background: #ccc;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    user-select: none;
-    font-weight: bold;
-  }
-  .safe { background: #fff; }
-  .trap { background: #e57373; color: #fff; }
-  .castle { background: gold; }
-  .start { background: #64b5f6; }
+  body{font-family:sans-serif;text-align:center;background:#f4f4f4;margin:0}
+  h1{margin:.6em 0}
+  #board{display:grid;grid-template-columns:repeat(8,44px);gap:3px;justify-content:center;margin:10px auto}
+  .cell{width:44px;height:44px;background:#cfcfcf;display:flex;align-items:center;justify-content:center;
+        cursor:pointer;user-select:none;font-weight:700;font-size:18px;border-radius:8px}
+  .cell.safe{background:#fff}
+  .cell.trap{background:#e57373;color:#fff}
+  .cell.castle{background:gold}
+  .cell.start{background:#64b5f6}
+  .num1{color:#1976d2}.num2{color:#2e7d32}.num3{color:#c62828}.num4{color:#6a1b9a}
+  .num5{color:#ef6c00}.num6{color:#00838f}.num7{color:#455a64}.num8{color:#000}
+  #message{min-height:1.5em;font-weight:700}
+  button{margin:8px 0 14px;padding:.6em 1.1em;border:0;border-radius:10px;background:#444;color:#fff;font-weight:700}
 </style>
 </head>
 <body>
 
 <h1>忍者潜入🏯</h1>
-<p>左端から🏯まで安全ルートを開けろ！斜めはつながらない。</p>
+<p>左端から🏯まで安全ルートで到達せよ（斜め移動不可 / 数字＝周囲8方向の罠数）</p>
 <div id="board"></div>
 <p id="message"></p>
 <button onclick="init()">もう一度</button>
 
 <script>
 const size = 8;
-const traps = 10; // 罠の数
+const traps = 10; // 罠数（調整可）
 let board, revealed;
-const castlePos = {x: size-1, y: Math.floor(size/2)};
+const castlePos = {x: size-1, y: Math.floor(size/2)}; // 右端の🏯
+const startRow  = Math.floor(size/2);                 // 左端の開始マス
 
-function init() {
+function init(){
   board = Array.from({length:size},()=>Array(size).fill(0));
   revealed = Array.from({length:size},()=>Array(size).fill(false));
+  document.getElementById('message').textContent = '';
 
-  // 罠をランダム配置（城と左端は除外）
-  let placed = 0;
-  while (placed < traps) {
-    let x = Math.floor(Math.random()*size);
-    let y = Math.floor(Math.random()*size);
-    if ((x===castlePos.x && y===castlePos.y) || x===0) continue;
-    if (board[y][x] === "B") continue;
-    board[y][x] = "B";
-    placed++;
+  // 罠をランダム配置（左端と🏯は除外）
+  let placed=0;
+  while(placed<traps){
+    const x = Math.floor(Math.random()*size);
+    const y = Math.floor(Math.random()*size);
+    if (x===0) continue; // 左端はスタート帯として罠なし
+    if (x===castlePos.x && y===castlePos.y) continue; // 城は罠なし
+    if (board[y][x]==="B") continue;
+    board[y][x]="B"; placed++;
+  }
+
+  // 数字（8方向カウント）
+  for(let y=0;y<size;y++){
+    for(let x=0;x<size;x++){
+      if(board[y][x]==="B") continue;
+      board[y][x] = countAround8(x,y);
+    }
   }
 
   drawBoard();
+
+  // 開幕：一番左の中央マスを自動で開く（0なら連鎖で広げる）
+  openCell(0,startRow);
 }
 
-function drawBoard() {
-  const boardDiv = document.getElementById("board");
-  boardDiv.innerHTML = "";
-  for (let y=0; y<size; y++) {
-    for (let x=0; x<size; x++) {
-      const cell = document.createElement("div");
-      cell.className = "cell";
-      if (x===0) cell.classList.add("start");
-      if (x===castlePos.x && y===castlePos.y) {
-        cell.textContent = "🏯";
-        cell.classList.add("castle");
+function countAround8(x,y){
+  let c=0;
+  for(let dy=-1;dy<=1;dy++){
+    for(let dx=-1;dx<=1;dx++){
+      if(dx===0&&dy===0) continue;
+      const nx=x+dx, ny=y+dy;
+      if(nx>=0&&nx<size&&ny>=0&&ny<size && board[ny][nx]==="B") c++;
+    }
+  }
+  return c;
+}
+
+function drawBoard(){
+  const wrap = document.getElementById('board');
+  wrap.innerHTML='';
+  for(let y=0;y<size;y++){
+    for(let x=0;x<size;x++){
+      const cell=document.createElement('div');
+      cell.className='cell';
+      if(x===0) cell.classList.add('start');
+      if(x===castlePos.x && y===castlePos.y){
+        cell.classList.add('castle');
+        if(!revealed[y][x]) cell.textContent='🏯';
       }
-      if (revealed[y][x]) {
-        if (board[y][x] === "B") cell.classList.add("trap");
-        else cell.classList.add("safe");
+      if(revealed[y][x]){
+        if(board[y][x]==="B"){ cell.classList.add('trap'); cell.textContent='💥'; }
+        else{
+          cell.classList.add('safe');
+          const n = board[y][x];
+          if(n>0){ cell.textContent=n; cell.classList.add('num'+n); }
+        }
       }
-      cell.addEventListener("click", ()=>openCell(x,y));
-      boardDiv.appendChild(cell);
+      cell.addEventListener('click', ()=>openCell(x,y));
+      wrap.appendChild(cell);
     }
   }
 }
 
-function openCell(x,y) {
-  if (revealed[y][x]) return;
-  revealed[y][x] = true;
-  if (board[y][x] === "B") {
-    document.getElementById("message").textContent = "💥 罠にかかった！";
+function openCell(x,y){
+  if(revealed[y][x]) return;
+  revealed[y][x]=true;
+
+  if(board[y][x]==="B"){
+    document.getElementById('message').textContent='💥 罠にかかった！';
+    revealAll(); return;
+  }
+
+  // 0なら連鎖オープン（上下左右のみ広げる）
+  if(board[y][x]===0) floodRevealZeros(x,y);
+
+  drawBoard();
+
+  if(checkClear()){
+    document.getElementById('message').textContent='🎉 潜入成功！';
+    // クリア時は全開示して状態を見れるように
     revealAll();
-    return;
-  }
-  drawBoard();
-  if (checkClear()) {
-    document.getElementById("message").textContent = "🎉 潜入成功！";
   }
 }
 
-function revealAll() {
-  for (let y=0; y<size; y++) for (let x=0; x<size; x++) revealed[y][x] = true;
-  drawBoard();
-}
-
-// 左端から🏯まで上下左右のみでつながっているかを確認
-function checkClear() {
-  const visited = Array.from({length:size},()=>Array(size).fill(false));
-  const q = [];
-  for (let y=0; y<size; y++) {
-    if (revealed[y][0] && board[y][0] !== "B") {
-      q.push({x:0,y});
-      visited[y][0] = true;
+function floodRevealZeros(sx,sy){
+  const q=[{x:sx,y:sy}];
+  while(q.length){
+    const {x,y}=q.shift();
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx, ny=y+dy;
+      if(nx<0||nx>=size||ny<0||ny>=size) continue;
+      if(revealed[ny][nx]) continue;
+      if(board[ny][nx]==="B") continue;
+      revealed[ny][nx]=true;
+      if(board[ny][nx]===0) q.push({x:nx,y:ny});
     }
   }
-  while (q.length) {
-    const {x,y} = q.shift();
-    if (x === castlePos.x && y === castlePos.y) return true;
-    for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-      const nx = x+dx, ny = y+dy;
-      if (nx>=0 && nx<size && ny>=0 && ny<size && !visited[ny][nx] && revealed[ny][nx] && board[ny][nx] !== "B") {
-        visited[ny][nx] = true;
-        q.push({x:nx,y:ny});
+}
+
+function revealAll(){
+  for(let y=0;y<size;y++) for(let x=0;x<size;x++) revealed[y][x]=true;
+  drawBoard();
+}
+
+// 左端の“開いた安全マス”から上下左右で🏯に到達できたらクリア
+function checkClear(){
+  const vis = Array.from({length:size},()=>Array(size).fill(false));
+  const q=[];
+  for(let y=0;y<size;y++){
+    if(revealed[y][0] && board[y][0]!=="B"){ q.push({x:0,y}); vis[y][0]=true; }
+  }
+  while(q.length){
+    const {x,y}=q.shift();
+    if(x===castlePos.x && y===castlePos.y) return true;
+    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+dx, ny=y+dy;
+      if(nx<0||nx>=size||ny<0||ny>=size) continue;
+      if(vis[ny][nx]) continue;
+      if(revealed[ny][nx] && board[ny][nx]!=="B"){
+        vis[ny][nx]=true; q.push({x:nx,y:ny});
       }
     }
   }
@@ -134,6 +168,5 @@ function checkClear() {
 
 init();
 </script>
-
 </body>
 </html>
