@@ -153,7 +153,7 @@
   .badge-row{display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px}
   .badge-label{font-size:1rem; color:#cfe2ff99; margin-right:6px}
 
-  /* クリア演出：城グロー＆盤キラキラ */
+  /* クリア演出：城グロー＆盤キラキラ（bodyに .castleGlow を付ける） */
   .castleGlow .cell.castle::after{ filter:drop-shadow(0 0 10px rgba(255,213,79,.75)) drop-shadow(0 0 20px rgba(255,213,79,.55)) }
   .boardShine{ position:relative }
   .boardShine::after{
@@ -186,7 +186,7 @@
       <span class="pill" id="sizePill">Size: 5×5</span>
       <span class="pill" id="trapPill">罠: 6</span>
       <span class="pill">数字＝そのマスの <b>周囲8方向</b> にある罠の数</span>
-      <button class="linkbtn" id="resetProgress">進行状況をリセット</button>
+      <button class="linkbtn" id="resetProgress" type="button">進行状況をリセット</button>
     </div>
     <p class="sub">
       ルール：左端から<strong>順番に</strong>／上下OK・斜めNG／0でも自動連鎖なし。<br>
@@ -200,7 +200,7 @@
     </div>
 
     <div class="bar">
-      <button id="retry" class="btn btn-lg">🔁 同じステージをやり直す</button>
+      <button id="retry" class="btn btn-lg" type="button">🔁 同じステージをやり直す</button>
     </div>
 
     <p id="message" aria-live="polite"></p>
@@ -240,6 +240,13 @@
 <script>
 /* ===== 段階サイズ／確実ルート／サイズ自動調整／演出 ===== */
 (function(){
+  /* --- 安全なストレージ（Safariプライベート等でfallback） --- */
+  const memStore = {};
+  const storage = {
+    get(key, def){ try{ const v = localStorage.getItem(key); return v===null? def : v; }catch(_){ return key in memStore ? memStore[key] : def; } },
+    set(key, val){ try{ localStorage.setItem(key, val); }catch(_){ memStore[key]=String(val); } }
+  };
+
   const $id=(id)=>document.getElementById(id);
   const safeText=(el,t)=>{ if(el) el.textContent=t; };
   const clamp=(min,max,v)=>Math.max(min, Math.min(max, v));
@@ -267,7 +274,7 @@
     const resetBtn  = $id('resetProgress');
 
     if(!boardEl||!msgEl||!sizePill||!trapPill||!worldPill||!intro||!overlay||!introStart||!stageBadge){
-      console.error('必要なDOMが見つかりません'); return;
+      alert('初期化に必要な要素が見つかりません'); return;
     }
 
     /* ===== ステージ設定 ===== */
@@ -287,9 +294,9 @@
       return Math.min(cap, Math.max(4, raw));
     }
 
-    // 進行（保存）
-    let world = clamp(1, MAX_WORLD, Number(localStorage.getItem('sennyu_world')||1));
-    let sub   = clamp(1, SUBS_PER_WORLD, Number(localStorage.getItem('sennyu_sub')||1));
+    // 進行（安全ストレージ）
+    let world = clamp(1, MAX_WORLD, Number(storage.get('sennyu_world', 1)));
+    let sub   = clamp(1, SUBS_PER_WORLD, Number(storage.get('sennyu_sub', 1)));
 
     // 状態
     let SIZE = calcSize(world, sub);
@@ -329,8 +336,8 @@
 
     /* ===== 基本関数 ===== */
     function persist(){
-      localStorage.setItem('sennyu_world', String(world));
-      localStorage.setItem('sennyu_sub',   String(sub));
+      storage.set('sennyu_world', String(world));
+      storage.set('sennyu_sub',   String(sub));
     }
     function updateHud(){
       safeText(worldPill, `World ${world}-${pad2(sub)}`);
@@ -481,14 +488,4 @@
 
       // クリア判定
       if(x===castle.x && y===castle.y){
-        setMsg('🎉 潜入成功！', false, true);
-        celebrateFX(); // 紙吹雪
-        boardEl.classList.add('boardShine'); document.body.classList.add('castleGlow');
-        revealAll(); draw();
-        showWinOverlay();
-      }
-    }
-
-    function setMsg(t, lose=false, win=false){
-      msgEl.className=''; if(lose) msgEl.classList.add('lose'); if(win) msgEl.classList.add('win');
-    
+        setMsg('🎉 
