@@ -29,7 +29,7 @@
     overflow-x:hidden;
   }
 
-  /* === おしゃれ背景：グラデ＋ネオングリッド＋光のブラー === */
+  /* === 背景：グラデ＋ネオングリッド＋光のブラー === */
   .bg{
     position:fixed; inset:-10vmax; z-index:-2; pointer-events:none;
     background:
@@ -48,22 +48,13 @@
     mask-image: radial-gradient(60% 60% at 50% 40%, #000 60%, transparent 100%);
     animation: gridMove 22s linear infinite;
   }
-  @keyframes gridMove{
-    from{ transform: translateY(0px) } to{ transform: translateY(36px) }
-  }
-  .glow{
-    position:fixed; inset:0; pointer-events:none; z-index:-1;
-  }
-  .blob{
-    position:absolute; width:40vmax; height:40vmax; filter:blur(60px);
-    opacity:.13; background:radial-gradient(circle at 50% 50%, #4be1ff, transparent 60%);
-    animation: float 18s ease-in-out infinite;
-  }
+  @keyframes gridMove{ from{ transform: translateY(0px) } to{ transform: translateY(36px) } }
+  .glow{ position:fixed; inset:0; pointer-events:none; z-index:-1; }
+  .blob{ position:absolute; width:40vmax; height:40vmax; filter:blur(60px);
+         opacity:.13; background:radial-gradient(circle at 50% 50%, #4be1ff, transparent 60%);
+         animation: float 18s ease-in-out infinite; }
   .blob.b2{ left:60%; top:10%; background:radial-gradient(circle at 50% 50%, #9b6bff, transparent 60%); animation-duration:22s }
-  @keyframes float{
-    0%,100%{ transform:translate3d(0,0,0) scale(1) }
-    50%{ transform:translate3d(-4vw,2vh,0) scale(1.05) }
-  }
+  @keyframes float{ 0%,100%{ transform:translate3d(0,0,0) scale(1) } 50%{ transform:translate3d(-4vw,2vh,0) scale(1.05) } }
 
   .wrap{width:100%;max-width:980px;padding:14px 16px}
   header h1{margin:.2em 0 .1em}
@@ -74,21 +65,17 @@
     background:var(--panel); border:1px solid var(--panel-b); border-radius:12px; padding:8px 10px; margin-bottom:.5rem;
   }
   .pill{padding:.35em .7em; border-radius:999px; border:1px solid #37568f; background:#0f1b37; font-weight:800}
-  .linkbtn{
-    appearance:none; border:0; background:transparent; color:#8bd3ff; font-weight:800; cursor:pointer; text-decoration:underline;
-  }
+  .linkbtn{ appearance:none; border:0; background:transparent; color:#8bd3ff; font-weight:800; cursor:pointer; text-decoration:underline; }
 
   /* 盤：左端合わせ＋スクロール */
   #boardWrap{
     width:100%;
-    display:flex;
-    justify-content:flex-start;
+    display:flex; justify-content:flex-start;
     margin:.5rem 0;
     padding-left:max(12px, env(safe-area-inset-left));
     padding-right:max(6px, env(safe-area-inset-right));
     overflow:auto; -webkit-overflow-scrolling:touch;
-    max-height:70vh;
-    border-radius:16px;
+    max-height:70vh; border-radius:16px;
   }
   #board{
     --cols:8;
@@ -172,10 +159,12 @@
   .boardShine::after{
     content:""; position:absolute; inset:0; pointer-events:none;
     background:linear-gradient(120deg, transparent 0%, rgba(255,255,255,.08) 45%, transparent 55%);
-    transform:translateX(-120%); animation:shine 1.2s ease-out forwards;
-    border-radius:14px;
+    transform:translateX(-120%); animation:shine 1.2s ease-out forwards; border-radius:14px;
   }
   @keyframes shine{ to{ transform:translateX(120%) } }
+
+  /* 紙吹雪用 */
+  @keyframes fall { 0% { transform: translateY(-10vh) rotate(0deg); } 100% { transform: translateY(110vh) rotate(360deg); } }
 
   footer{width:100%;max-width:980px;color:#cfe2ff99;padding:16px 16px 28px}
   footer .links{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
@@ -285,7 +274,7 @@
     const MAX_WORLD = 5, SUBS_PER_WORLD = 5; // 25面
     const TRAP_CAP_RATIO = 0.30;
 
-    // 1→5×5, 2→6×6, 3→7×7, 4→8×8, 5→9×9
+    // sub: 1→5×5, 2→6×6, 3→7×7, 4→8×8, 5→9×9
     function calcSize(world, sub){ return 4 + sub; }
 
     // 罠：サイズと進行で増加（通路は常に除外）
@@ -308,8 +297,13 @@
     let traps = calcTraps(world, sub, SIZE);
     let castle = {x: SIZE-1, y: Math.floor(SIZE/2)};
 
-    // イベント
-    introStart.addEventListener('click', ()=>{ intro.classList.add('hidden'); startStage(); });
+    /* ---- イベント（スマホ確実対応） ---- */
+    const startNow = ()=>{ intro.classList.add('hidden'); startStage(); };
+    introStart.addEventListener('pointerup', startNow);
+    introStart.addEventListener('click',     startNow);
+    introStart.addEventListener('keydown',   e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); startNow(); } });
+    intro.addEventListener('pointerup', e=>{ if(!e.target.closest('#introStart')) startNow(); });
+
     ovNext.addEventListener('click', ()=>{ hideOverlay(); advanceStage(); showIntro(); });
     ovRetry.addEventListener('click', ()=>{ hideOverlay(); showIntro(true); });
     retryBtn.addEventListener('click', ()=>{ hideOverlay(); showIntro(true); });
@@ -371,7 +365,7 @@
       revealed = Array.from({length:SIZE},()=>Array(SIZE).fill(false));
       ninjaPos=null;
 
-      // 通路を先に確定
+      // 通路を先に確定（左端→🏯）
       const path = buildGuaranteedPath(SIZE, castle.y);
       path.add(`${castle.x},${castle.y}`);
 
@@ -424,7 +418,6 @@
     function draw(){
       boardEl.style.setProperty('--cols', SIZE);
       boardEl.innerHTML='';
-      // クリア時の残り演出用クラスを外す
       boardEl.classList.remove('boardShine'); document.body.classList.remove('castleGlow');
 
       for(let y=0;y<SIZE;y++){
@@ -436,7 +429,7 @@
           const allowed = canOpen(x,y);
 
           if(x===0) el.classList.add('start');
-          if(x===SIZE-1 && y===Math.floor(SIZE/2)) el.classList.add('castle');
+          if(x===castle.x && y===castle.y) el.classList.add('castle');
 
           if(!revealed[y][x]){
             if(allowed) el.classList.add('frontier'); else el.classList.add('locked');
@@ -477,12 +470,10 @@
       draw();
 
       // クリア判定
-      if(x===SIZE-1 && y===Math.floor(SIZE/2)){
+      if(x===castle.x && y===castle.y){
         setMsg('🎉 潜入成功！', false, true);
         celebrateFX(); // 紙吹雪
-        // 盤と城の光演出
-        boardEl.classList.add('boardShine');
-        document.body.classList.add('castleGlow');
+        boardEl.classList.add('boardShine'); document.body.classList.add('castleGlow');
         revealAll(); draw();
         showWinOverlay();
       }
@@ -506,15 +497,4 @@
       traps = calcTraps(world, sub, SIZE);
       const label = `${world}-${pad2(sub)}`;
       safeText(stageBadge, label);
-      safeText(worldPill,  `World ${label}`);
-      safeText(trapPill,   `罠: ${traps}`);
-      safeText(sizePill,   `Size: ${SIZE}×${SIZE}`);
-      setCellSize(SIZE);
-      intro.classList.remove('hidden');
-    }
-
-    /* ===== 演出 ===== */
-    function explodeFX(){
-      const wrap=$id('boardWrap');
-      if(wrap){ wrap.classList.add('shake'); setTimeout(()=>wrap.classList.remove('shake'),600); }
-      cons
+      safeText(worldPill,  `Worl
