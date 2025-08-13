@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>忍者潜入🏯 — リセット版</title>
+<title>忍者潜入🏯 — ワールド内サイズ固定・罠で難易度UP</title>
 <style>
   :root{
     --bg:#070c18; --text:#eef3ff;
@@ -42,13 +42,14 @@
 
   .wrap{width:100%;max-width:980px;padding:14px 16px}
   header h1{margin:.2em 0 .1em}
-  .sub{opacity:.8;margin:.2rem 0 .6rem}
+  .sub{opacity:.85;margin:.2rem 0 .6rem}
 
   /* 盤：左端合わせ＋スクロール */
   #boardWrap{
     width:100%; overflow:auto; -webkit-overflow-scrolling:touch;
     border-radius:16px; margin:.5rem 0;
     padding-left:max(12px, env(safe-area-inset-left));
+    padding-right:max(6px, env(safe-area-inset-right));
   }
   #board{
     display:grid; gap:var(--gap);
@@ -120,7 +121,7 @@
   <header class="wrap">
     <h1>忍者潜入🏯</h1>
     <div class="hud">
-      <span class="pill" id="stagePill">Stage 1-01</span>
+      <span class="pill" id="stagePill">World 1-01</span>
       <span class="pill" id="sizePill">Size: 5×5</span>
       <span class="pill" id="trapPill">罠: 6</span>
       <span class="pill">数字＝そのマスの<b>周囲8方向</b>にある罠の数</span>
@@ -167,13 +168,11 @@
 
 <script>
 (() => { 'use strict';
-  // --- 安全ユーティリティ
   const $ = (id)=>document.getElementById(id);
   const txt = (el, t)=>{ if(el) el.textContent = t; };
   const clamp=(a,b,v)=>Math.max(a, Math.min(b, v));
   const pad2=(n)=>String(n).padStart(2,'0');
 
-  // --- DOM取得（存在しないときは終了）
   const boardEl = $('board'), wrapEl = $('boardWrap'), msgEl = $('message');
   const stagePill=$('stagePill'), sizePill=$('sizePill'), trapPill=$('trapPill');
   const intro = $('intro'), startBtn = $('start'), badge=$('badge');
@@ -182,16 +181,22 @@
     alert('初期化失敗：要素が見つかりません'); return;
   }
 
-  // --- ゲーム状態（セッションのみ。保存しない）
+  // ===== 設定：ワールド内はサイズ固定、サブで罠増加 =====
   const MAX_WORLD=5, SUBS=5;
   let world=1, sub=1;
   let SIZE=5, TRAPS=6, board=[], revealed=[], ninja=null, castle={x:4,y:2};
 
-  // --- 設定計算
-  const sizeOf = (sub)=>4+sub; // 1→5, 2→6, 3→7, 4→8, 5→9
-  const trapsOf = (size)=>({5:6,6:9,7:12,8:16,9:20}[size]||Math.floor(size*size*0.22));
+  const sizeOfWorld = (w)=>({1:5,2:6,3:7,4:8,5:9}[w]||9);
 
-  // --- レイアウト：セル自動調整
+  // 罠はサイズ別の基準から開始し、サブごとに+1（最大30%まで）
+  function trapsOf(size, sub){
+    const baseBySize = {5:6, 6:9, 7:12, 8:16, 9:20};
+    const base = baseBySize[size] ?? Math.floor(size*size*0.22);
+    const start = Math.max(1, base-1);           // 1面目を少し軽めに
+    const cap = Math.floor(size*size*0.30);      // セル総数の30%を上限
+    return Math.min(cap, start + (sub-1));       // サブごとに +1
+  }
+
   function setCellSize(size){
     const wrapW = wrapEl.clientWidth || window.innerWidth;
     const gap = 7*(size-1);
@@ -201,7 +206,6 @@
   }
   window.addEventListener('resize', ()=> setCellSize(SIZE));
 
-  // --- スタート（click と touchend のみ。重複防止）
   function startNow(e){
     if(e){ e.preventDefault(); e.stopPropagation(); }
     if(intro.classList.contains('hidden')) return;
@@ -211,12 +215,12 @@
   startBtn.addEventListener('click', startNow, {passive:false});
   startBtn.addEventListener('touchend', startNow, {passive:false});
 
-  // --- 盤生成
   function startStage(){
-    SIZE = sizeOf(sub); TRAPS = trapsOf(SIZE);
+    SIZE = sizeOfWorld(world);
+    TRAPS = trapsOf(SIZE, sub);
     castle = {x: SIZE-1, y: Math.floor(SIZE/2)};
     setCellSize(SIZE);
-    txt(stagePill, `Stage ${world}-${pad2(sub)}`);
+    txt(stagePill, `World ${world}-${pad2(sub)}`);
     txt(sizePill,  `Size: ${SIZE}×${SIZE}`);
     txt(trapPill,  `罠: ${TRAPS}`);
     txt(msgEl,''); ninja=null;
@@ -224,12 +228,10 @@
     board = Array.from({length:SIZE},()=>Array(SIZE).fill(0));
     revealed = Array.from({length:SIZE},()=>Array(SIZE).fill(false));
 
-    // 必ず通れる道（斜めなし）
     const path = buildPath(SIZE, castle.y); path.add(`${castle.x},${castle.y}`);
 
-    // 罠配置：通路と左端と🏯を除外
-    let placed=0;
-    while(placed<TRAPS){
+    let placed=0, tries=0, maxTries=SIZE*SIZE*20;
+    while(placed<TRAPS && tries++<maxTries){
       const x=Math.floor(Math.random()*SIZE), y=Math.floor(Math.random()*SIZE);
       if(x===0) continue;
       if(x===castle.x && y===castle.y) continue;
@@ -238,7 +240,6 @@
       board[y][x]='T'; placed++;
     }
 
-    // 数字
     for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++){
       if(board[y][x]==='T') continue;
       board[y][x]=count8(x,y);
@@ -273,7 +274,6 @@
     return c;
   }
 
-  // 左から順：左端OK、同列上下OK、左隣OK、斜めNG
   const canOpen=(x,y)=>{
     if(revealed[y][x]) return false;
     if(x===0) return true;
@@ -292,7 +292,7 @@
         const el=document.createElement('button');
         el.type='button'; el.className='cell'; el.setAttribute('aria-label',`行${y+1} 列${x+1}`);
         if(x===0) el.classList.add('start');
-        if(x===castle.x && y===castle.y) el.classList.add('castle');
+        if(x===SIZE-1 && y===Math.floor(SIZE/2)) el.classList.add('castle');
 
         const allow = canOpen(x,y);
         if(!revealed[y][x]) el.classList.add(allow?'frontier':'locked');
@@ -319,20 +319,20 @@
     revealed[y][x]=true; ninja={x,y};
 
     if(board[y][x]==='T'){
-      txt(msgEl,'💥 罠にかかった！'); boomFX(); revealAll(); draw(); showLose(); return;
+      txt(msgEl,'💥 罠にかかった！');
+      wrapEl.classList.add('shake'); setTimeout(()=>wrapEl.classList.remove('shake'),600);
+      revealAll(); draw(); showLose(); return;
     }
     draw();
-    if(x===castle.x && y===castle.y){
-      txt(msgEl,'🎉 潜入成功！'); confettiFX(); boardEl.classList.add('boardShine'); revealAll(); draw(); showWin();
+    if(x===SIZE-1 && y===Math.floor(SIZE/2)){
+      txt(msgEl,'🎉 潜入成功！');
+      boardEl.classList.add('boardShine'); confettiFX();
+      revealAll(); draw(); showWin();
     }
   }
 
   const revealAll=()=>{ for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++) revealed[y][x]=true; };
 
-  // --- 演出
-  function boomFX(){
-    wrapEl.classList.add('shake'); setTimeout(()=>wrapEl.classList.remove('shake'),600);
-  }
   function confettiFX(){
     const EMO=['🎉','✨','💐','🥷','👑']; const n=46;
     const lay=document.createElement('div');
@@ -347,7 +347,6 @@
     setTimeout(()=>lay.remove(),2600);
   }
 
-  // --- オーバーレイ
   function showWin(){
     txt(ovTitle,'🎉 潜入成功！'); txt(ovDesc,'本丸に到達！次へ進めます。');
     ov.classList.remove('hidden');
@@ -358,17 +357,16 @@
   }
   function hideOv(){ ov.classList.add('hidden'); nextBtn.classList.remove('hidden'); }
 
-  nextBtn.addEventListener('click', ()=>{ hideOv(); sub = (sub<SUBS)? sub+1 : 1, world = (sub===1? Math.min(MAX_WORLD, world+1):world); showIntro(); });
+  nextBtn.addEventListener('click', ()=>{ hideOv(); if(sub<SUBS){ sub++; } else { sub=1; world=Math.min(MAX_WORLD, world+1); } showIntro(); });
   againBtn.addEventListener('click', ()=>{ hideOv(); showIntro(true); });
   retryBtn.addEventListener('click', ()=>{ hideOv(); showIntro(true); });
 
-  // --- イントロ表示
   function showIntro(same=false){
-    if(!same){ /* 次へ */ }
+    const s = sizeOfWorld(world);
     txt(badge, `${world}-${pad2(sub)}`);
-    txt(stagePill, `Stage ${world}-${pad2(sub)}`);
-    txt(sizePill,  `Size: ${sizeOf(sub)}×${sizeOf(sub)}`);
-    txt(trapPill,  `罠: ${trapsOf(sizeOf(sub))}`);
+    txt(stagePill, `World ${world}-${pad2(sub)}`);
+    txt(sizePill,  `Size: ${s}×${s}`);                 // ← ワールド内でサイズ固定
+    txt(trapPill,  `罠: ${trapsOf(s, sub)}`);          // ← サブで罠増加
     intro.classList.remove('hidden');
   }
 
