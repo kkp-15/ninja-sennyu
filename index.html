@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>忍者潜入🏯 — 5×5開始／セルサイズ表示／確実ルート</title>
+<title>忍者潜入🏯 — 段階サイズ／確実ルート／スタイリッシュ背景</title>
 <style>
   :root{
-    --bg:#0a0f1c; --text:#eef3ff; --muted:#a8b7d3;
-    --cell:44px; /* JSで34〜64の範囲に自動調整 */
+    --bg:#070c18; --text:#eef3ff; --muted:#a8b7d3;
+    --cell:44px;             /* JSで 32〜64 に自動調整 */
+    --gap:7px;
     --covered1:#1a2b52; --covered2:#132447; --covered-border:#3a5a94;
     --open1:#0f1b37; --open2:#0a1430; --open-border:#2c497b;
     --frontier:#46e1ff; --frontier-glow:#46e1ff55;
@@ -15,45 +16,86 @@
     --start-outline:#8bd3ff; --trap-bg:#7a2a2a; --trap-border:#b33a3a;
     --castle-glow:#ffd54f; --focus:#00e5ff;
     --ok:#b4ffb4; --ng:#ff9b9b;
+    --panel:#0f1b37; --panel-b:#2a4272;
   }
+
   *{box-sizing:border-box}
   html,body{height:100%}
   body{
-    margin:0; background:linear-gradient(180deg,#091327,#0a0f1c); color:var(--text);
+    margin:0; color:var(--text);
     font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
     display:flex; flex-direction:column; align-items:center;
+    background: var(--bg);
+    overflow-x:hidden;
   }
+
+  /* === おしゃれ背景：グラデ＋ネオングリッド＋光のブラー === */
+  .bg{
+    position:fixed; inset:-10vmax; z-index:-2; pointer-events:none;
+    background:
+      radial-gradient(1200px 800px at 10% -10%, #10306666, transparent 60%),
+      radial-gradient(1300px 900px at 100% 10%, #2a1a6666, transparent 60%),
+      linear-gradient(180deg,#0b1630, #070c18 55%, #060a12);
+    filter: saturate(110%);
+  }
+  .bg::before{
+    content:""; position:absolute; inset:0; z-index:-1; opacity:.25;
+    background-image:
+      radial-gradient(#6fe1ff44 1px, transparent 1px),
+      radial-gradient(#6fe1ff33 1px, transparent 1px);
+    background-size: 36px 36px, 36px 36px;
+    background-position: 0 0, 18px 18px;
+    mask-image: radial-gradient(60% 60% at 50% 40%, #000 60%, transparent 100%);
+    animation: gridMove 22s linear infinite;
+  }
+  @keyframes gridMove{
+    from{ transform: translateY(0px) } to{ transform: translateY(36px) }
+  }
+  .glow{
+    position:fixed; inset:0; pointer-events:none; z-index:-1;
+  }
+  .blob{
+    position:absolute; width:40vmax; height:40vmax; filter:blur(60px);
+    opacity:.13; background:radial-gradient(circle at 50% 50%, #4be1ff, transparent 60%);
+    animation: float 18s ease-in-out infinite;
+  }
+  .blob.b2{ left:60%; top:10%; background:radial-gradient(circle at 50% 50%, #9b6bff, transparent 60%); animation-duration:22s }
+  @keyframes float{
+    0%,100%{ transform:translate3d(0,0,0) scale(1) }
+    50%{ transform:translate3d(-4vw,2vh,0) scale(1.05) }
+  }
+
   .wrap{width:100%;max-width:980px;padding:14px 16px}
   header h1{margin:.2em 0 .1em}
   .sub{color:var(--muted);margin:.1rem 0 .6rem}
 
   .hud{
     display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:center;
-    background:#0b1630; border:1px solid #263f6a; border-radius:12px; padding:8px 10px; margin-bottom:.5rem;
+    background:var(--panel); border:1px solid var(--panel-b); border-radius:12px; padding:8px 10px; margin-bottom:.5rem;
   }
   .pill{padding:.35em .7em; border-radius:999px; border:1px solid #37568f; background:#0f1b37; font-weight:800}
   .linkbtn{
     appearance:none; border:0; background:transparent; color:#8bd3ff; font-weight:800; cursor:pointer; text-decoration:underline;
   }
-  .linkbtn:hover{filter:brightness(1.1)}
 
-  /* 盤：左端合わせ＋横/縦スクロール */
+  /* 盤：左端合わせ＋スクロール */
   #boardWrap{
     width:100%;
     display:flex;
     justify-content:flex-start;
     margin:.5rem 0;
-    padding-left:  max(12px, env(safe-area-inset-left));
-    padding-right: max(6px,  env(safe-area-inset-right));
+    padding-left:max(12px, env(safe-area-inset-left));
+    padding-right:max(6px, env(safe-area-inset-right));
     overflow:auto; -webkit-overflow-scrolling:touch;
     max-height:70vh;
     border-radius:16px;
   }
   #board{
-    display:grid; gap:7px; grid-template-columns:repeat(8,var(--cell)); /* JSで列数更新 */
+    --cols:8;
+    display:grid; gap:var(--gap); grid-template-columns:repeat(var(--cols),var(--cell));
     width:max-content;
     background:#0b1734; border:2px solid #233a64; padding:14px; border-radius:16px;
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 16px 40px rgba(0,0,0,.5);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 16px 40px rgba(0,0,0,.55);
     touch-action:manipulation;
   }
 
@@ -78,10 +120,8 @@
     border-color:#4bd3ff; filter:brightness(1.06);
     animation:pulse 1.2s ease-in-out infinite alternate;
   }
-  @keyframes pulse{
-    0%{ box-shadow:0 0 0 2px var(--frontier) inset, 0 0 10px 1px var(--frontier-glow) }
-    100%{ box-shadow:0 0 0 4px var(--frontier) inset, 0 0 20px 3px var(--frontier-glow) }
-  }
+  @keyframes pulse{ 0%{ box-shadow:0 0 0 2px var(--frontier) inset, 0 0 10px 1px var(--frontier-glow) }
+                    100%{ box-shadow:0 0 0 4px var(--frontier) inset, 0 0 20px 3px var(--frontier-glow) } }
   .cell.start{ outline:2px dashed var(--start-outline); outline-offset:-2px }
   .cell.castle::after{ content:"🏯"; position:absolute; font-size:calc(var(--cell)*0.62); filter:drop-shadow(0 0 6px rgba(255,213,79,.35)) }
   .cell.trap{ background:linear-gradient(180deg,var(--trap-bg),#4f1111); border-color:var(--trap-border) }
@@ -89,19 +129,17 @@
   .n1{color:#76b7ff}.n2{color:#55d68c}.n3{color:#ffc14d}.n4{color:#c5a3ff}
   .n5{color:#ff9a6b}.n6{color:#8fe3ff}.n7{color:#ff7d92}.n8{color:#ffffff}
 
-  /* 忍者アイコン（右下バッジで数字を隠さない） */
+  /* 忍者（右下バッジで数字を隠さない） */
   .cell.ninja::before{
-    content:"🥷";
-    position:absolute; right:2px; bottom:2px;
-    font-size:calc(var(--cell)*0.36);
-    line-height:1; pointer-events:none; filter:drop-shadow(0 0 3px rgba(0,0,0,.4));
-    opacity:0.9; z-index:1;
+    content:"🥷"; position:absolute; right:2px; bottom:2px;
+    font-size:calc(var(--cell)*0.36); line-height:1; pointer-events:none;
+    filter:drop-shadow(0 0 3px rgba(0,0,0,.4)); opacity:.92; z-index:1;
   }
 
   .bar{display:flex;gap:12px;justify-content:center;align-items:center;margin:.35rem 0;flex-wrap:wrap}
   .btn{ background:#16264a;border:2px solid #2a4272;color:#eaf1ff;border-radius:14px;font-weight:900;cursor:pointer; box-shadow:0 3px 10px rgba(0,0,0,.35); transition:transform .06s ease,filter .12s ease }
   .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
-  .btn-lg{ font-size:1.2rem; padding:16px 26px; width:min(560px,92vw); }
+  .btn-lg{ font-size:1.15rem; padding:14px 22px; width:min(560px,92vw); }
 
   #message{min-height:1.8em;text-align:center;font-weight:900}
   #message.win{color:var(--ok)} #message.lose{color:var(--ng)}
@@ -112,23 +150,32 @@
   @keyframes flashOut{ from{opacity:.9} to{opacity:0} }
 
   .overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center, rgba(0,0,0,.35), rgba(0,0,0,.7)); z-index:10 }
-  .overlay .panel{ background:#0f1b37; border:2px solid #2a4272; border-radius:18px; padding:24px; text-align:center; width:min(640px,92vw); box-shadow:0 20px 60px rgba(0,0,0,.6) }
+  .overlay .panel{ background:var(--panel); border:2px solid var(--panel-b); border-radius:18px; padding:22px; text-align:center; width:min(640px,92vw); box-shadow:0 20px 60px rgba(0,0,0,.6) }
   .overlay h2{ margin:.2em 0 .2em; font-size:2rem }
   .hidden{ display:none }
 
-  /* ステージバッジ（セルと同じサイズ） */
+  /* ステージバッジ（セルと同サイズ） */
   .stage-badge{
     width:var(--cell); height:var(--cell);
     display:inline-flex; align-items:center; justify-content:center;
-    border-radius:12px;
-    background:linear-gradient(180deg,var(--covered1),var(--covered2));
+    border-radius:12px; background:linear-gradient(180deg,var(--covered1),var(--covered2));
     border:2px solid var(--covered-border);
-    font-weight:900; font-size:calc(var(--cell)*0.34);
-    letter-spacing:0.5px; color:#e9f1ff;
+    font-weight:900; font-size:calc(var(--cell)*0.34); letter-spacing:0.5px; color:#e9f1ff;
     box-shadow:inset 0 3px 10px rgba(0,0,0,.35);
   }
   .badge-row{display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px}
   .badge-label{font-size:1rem; color:#cfe2ff99; margin-right:6px}
+
+  /* クリア演出：城グロー＆盤キラキラ */
+  .castleGlow .cell.castle::after{ filter:drop-shadow(0 0 10px rgba(255,213,79,.75)) drop-shadow(0 0 20px rgba(255,213,79,.55)) }
+  .boardShine{ position:relative }
+  .boardShine::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(120deg, transparent 0%, rgba(255,255,255,.08) 45%, transparent 55%);
+    transform:translateX(-120%); animation:shine 1.2s ease-out forwards;
+    border-radius:14px;
+  }
+  @keyframes shine{ to{ transform:translateX(120%) } }
 
   footer{width:100%;max-width:980px;color:#cfe2ff99;padding:16px 16px 28px}
   footer .links{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
@@ -136,6 +183,13 @@
 </style>
 </head>
 <body>
+  <!-- 背景 -->
+  <div class="bg"></div>
+  <div class="glow">
+    <div class="blob" style="left:-10%; top:30%"></div>
+    <div class="blob b2"></div>
+  </div>
+
   <header class="wrap">
     <h1>忍者潜入🏯</h1>
     <div class="hud" aria-label="説明と進行状況">
@@ -195,7 +249,7 @@
   </footer>
 
 <script>
-/* ===== 5×5開始／セルサイズ表示／サイズ自動調整／確実ルート生成 ===== */
+/* ===== 段階サイズ／確実ルート／サイズ自動調整／演出 ===== */
 (function(){
   const $id=(id)=>document.getElementById(id);
   const safeText=(el,t)=>{ if(el) el.textContent=t; };
@@ -227,18 +281,19 @@
       console.error('必要なDOMが見つかりません'); return;
     }
 
-    // ステージ設定
-    const MAX_WORLD = 5, SUBS_PER_WORLD = 5;
-    const TRAP_CAP_RATIO = 0.28;
+    /* ===== ステージ設定 ===== */
+    const MAX_WORLD = 5, SUBS_PER_WORLD = 5; // 25面
+    const TRAP_CAP_RATIO = 0.30;
 
-    function calcSize(world, sub){
-      // 最初のみ 5×5、それ以降は 8×8
-      return (world===1 && sub===1) ? 5 : 8;
-    }
+    // 1→5×5, 2→6×6, 3→7×7, 4→8×8, 5→9×9
+    function calcSize(world, sub){ return 4 + sub; }
+
+    // 罠：サイズと進行で増加（通路は常に除外）
     function calcTraps(world, sub, size){
-      const base = (size===5) ? 6 : 10;     // 5×5は6個、8×8は10個を基準
-      const stepWorld = 3, stepSub = 2;
-      const raw = base + (world-1)*stepWorld + (sub-1)*stepSub;
+      const baseBySize = {5:6, 6:9, 7:12, 8:16, 9:20};
+      const base = baseBySize[size] ?? Math.floor(size*size*0.22);
+      const stepWorld = 2; // ワールドが変わると少し増える
+      const raw = base + (world-1)*stepWorld;
       const cap = Math.floor(size*size*TRAP_CAP_RATIO);
       return Math.min(cap, Math.max(4, raw));
     }
@@ -247,7 +302,7 @@
     let world = clamp(1, MAX_WORLD, Number(localStorage.getItem('sennyu_world')||1));
     let sub   = clamp(1, SUBS_PER_WORLD, Number(localStorage.getItem('sennyu_sub')||1));
 
-    // 盤面
+    // 状態
     let SIZE = calcSize(world, sub);
     let board=[], revealed=[], ninjaPos=null;
     let traps = calcTraps(world, sub, SIZE);
@@ -265,10 +320,10 @@
     });
     window.addEventListener('resize', ()=> setCellSize(SIZE));
 
-    // 起動：イントロ（スタート待ち）
+    // 起動
     showIntro();
 
-    /* ===== 盤・罠・進行 ===== */
+    /* ===== 基本関数 ===== */
     function persist(){
       localStorage.setItem('sennyu_world', String(world));
       localStorage.setItem('sennyu_sub',   String(sub));
@@ -278,19 +333,18 @@
       safeText(sizePill,  `Size: ${SIZE}×${SIZE}`);
       safeText(trapPill,  `罠: ${traps}`);
     }
-
     function setCellSize(size){
       const wrap = document.getElementById('boardWrap');
       const wrapW = wrap ? wrap.clientWidth : window.innerWidth;
-      const innerPadding = 28;             // board の左右合計パディング
-      const gap = 7 * (size - 1);          // セル隙間合計
-      const usable = Math.max(160, wrapW - innerPadding - gap - 8);
-      const px = clamp(34, 64, Math.floor(usable / size));
+      const innerPadding = 28;                         // board の左右合計パディング
+      const gap = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--gap')) || 7;
+      const usable = Math.max(160, wrapW - innerPadding - gap*(size-1) - 8);
+      const px = clamp(32, 64, Math.floor(usable / size));   // 指で押しやすい下限32px
       document.documentElement.style.setProperty('--cell', px + 'px');
     }
 
+    /* ===== ルート生成（斜めなし） ===== */
     function buildGuaranteedPath(size, castleY){
-      // 左端のランダム行から開始、右へ進みつつ縦位置を少しずつ城へ寄せる（斜めは使わない）
       let y = Math.floor(Math.random()*size);
       const path = new Set();
       for (let x = 0; x <= size-1; x++){
@@ -313,14 +367,13 @@
       updateHud();
       setMsg('');
 
-      // 盤生成
       board = Array.from({length:SIZE},()=>Array(SIZE).fill(0));
       revealed = Array.from({length:SIZE},()=>Array(SIZE).fill(false));
       ninjaPos=null;
 
-      // ✅ 先に必ず通れる道を作る（左端→右端の🏯まで、斜めなしで連結）
-      const guaranteedPath = buildGuaranteedPath(SIZE, castle.y);
-      guaranteedPath.add(`${castle.x},${castle.y}`);
+      // 通路を先に確定
+      const path = buildGuaranteedPath(SIZE, castle.y);
+      path.add(`${castle.x},${castle.y}`);
 
       // 罠配置（通路・左端・🏯は除外）
       let placed=0;
@@ -329,18 +382,19 @@
         const y=Math.floor(Math.random()*SIZE);
         if(x===0) continue;
         if(x===castle.x && y===castle.y) continue;
-        if(guaranteedPath.has(`${x},${y}`)) continue;
+        if(path.has(`${x},${y}`)) continue;
         if(board[y][x]==='T') continue;
         board[y][x]='T'; placed++;
       }
 
-      // 数字（8方向）
+      // 数字
       for(let y=0;y<SIZE;y++){
         for(let x=0;x<SIZE;x++){
           if(board[y][x]==='T') continue;
           board[y][x]=count8(x,y);
         }
       }
+
       draw();
     }
 
@@ -368,8 +422,11 @@
     }
 
     function draw(){
-      boardEl.style.gridTemplateColumns = `repeat(${SIZE}, var(--cell))`;
+      boardEl.style.setProperty('--cols', SIZE);
       boardEl.innerHTML='';
+      // クリア時の残り演出用クラスを外す
+      boardEl.classList.remove('boardShine'); document.body.classList.remove('castleGlow');
+
       for(let y=0;y<SIZE;y++){
         for(let x=0;x<SIZE;x++){
           const el=document.createElement('button');
@@ -379,7 +436,7 @@
           const allowed = canOpen(x,y);
 
           if(x===0) el.classList.add('start');
-          if(x===castle.x && y===castle.y) el.classList.add('castle');
+          if(x===SIZE-1 && y===Math.floor(SIZE/2)) el.classList.add('castle');
 
           if(!revealed[y][x]){
             if(allowed) el.classList.add('frontier'); else el.classList.add('locked');
@@ -419,9 +476,13 @@
 
       draw();
 
-      if(x===castle.x && y===castle.y){
+      // クリア判定
+      if(x===SIZE-1 && y===Math.floor(SIZE/2)){
         setMsg('🎉 潜入成功！', false, true);
-        celebrateFX();
+        celebrateFX(); // 紙吹雪
+        // 盤と城の光演出
+        boardEl.classList.add('boardShine');
+        document.body.classList.add('castleGlow');
         revealAll(); draw();
         showWinOverlay();
       }
@@ -440,7 +501,7 @@
     }
 
     /* ===== イントロ（セルサイズのステージバッジ表示） ===== */
-    function showIntro(retrySame=false){
+    function showIntro(){
       SIZE = calcSize(world, sub);
       traps = calcTraps(world, sub, SIZE);
       const label = `${world}-${pad2(sub)}`;
@@ -452,51 +513,8 @@
       intro.classList.remove('hidden');
     }
 
-    /* ===== 演出・オーバーレイ ===== */
+    /* ===== 演出 ===== */
     function explodeFX(){
       const wrap=$id('boardWrap');
       if(wrap){ wrap.classList.add('shake'); setTimeout(()=>wrap.classList.remove('shake'),600); }
-      const flash=document.createElement('div'); flash.className='flash';
-      document.body.appendChild(flash); setTimeout(()=>flash.remove(),520);
-    }
-    function celebrateFX(){
-      const EMOJIS=['🎉','🎀','✨','💐','🥷','👑']; const pieces=46;
-      const confetti = document.createElement('div');
-      confetti.style.position='fixed'; confetti.style.left='0'; confetti.style.top='-10vh';
-      confetti.style.width='100%'; confetti.style.height='110vh'; confetti.style.pointerEvents='none'; confetti.style.zIndex='11';
-      document.body.appendChild(confetti);
-      for(let i=0;i<pieces;i++){
-        const s=document.createElement('span');
-        s.textContent=EMOJIS[i%EMOJIS.length];
-        s.style.position='absolute';
-        s.style.left=Math.random()*100+'%';
-        s.style.top='-10vh';
-        s.style.fontSize='28px';
-        s.style.animation=`fall ${1.8+Math.random()*1.8}s linear forwards`;
-        confetti.appendChild(s);
-      }
-      setTimeout(()=>confetti.remove(), 2600);
-    }
-
-    function showWinOverlay(){
-      const isFinal = (world===MAX_WORLD && sub===SUBS_PER_WORLD);
-      safeText(ovTitle, isFinal ? '🏅 完全制覇！' : '🎉 潜入成功！');
-      safeText(ovDesc,  isFinal ? '全25面クリア！お見事！' : '本丸に到達！次のステージへ進めます。');
-      ovNext.classList.toggle('hidden', isFinal);
-      overlay.classList.remove('hidden');
-    }
-    function showLoseOverlay(){
-      safeText(ovTitle,'💥 任務失敗…');
-      safeText(ovDesc,'罠にかかった！同じステージで再挑戦。');
-      ovNext.classList.add('hidden');
-      overlay.classList.remove('hidden');
-    }
-    function hideOverlay(){ overlay.classList.add('hidden'); }
-  }
-
-  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', main); }
-  else { main(); }
-})();
-</script>
-</body>
-</html>
+      cons
