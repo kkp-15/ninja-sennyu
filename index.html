@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>忍者潜入🏯 — 段階サイズ／確実ルート／スタイリッシュ背景</title>
+<title>忍者潜入🏯 — 段階サイズ／確実ルート／スマホ対応</title>
 <style>
   :root{
     --bg:#070c18; --text:#eef3ff; --muted:#a8b7d3;
@@ -213,7 +213,7 @@
         <span class="badge-label">ステージ</span>
         <span id="stageBadge" class="stage-badge">1-01</span>
       </div>
-      <button id="introStart" class="btn btn-lg">▶ スタート</button>
+      <button id="introStart" class="btn btn-lg" type="button">▶ スタート</button>
     </div>
   </div>
 
@@ -223,8 +223,8 @@
       <h2 id="ovTitle">🎉 潜入成功！</h2>
       <p id="ovDesc">本丸に到達！</p>
       <div style="margin-top:12px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap">
-        <button id="ovNext" class="btn btn-lg">⤴ 次のステージへ</button>
-        <button id="ovRetry" class="btn btn-lg">🔁 同じステージ</button>
+        <button id="ovNext" class="btn btn-lg" type="button">⤴ 次のステージへ</button>
+        <button id="ovRetry" class="btn btn-lg" type="button">🔁 同じステージ</button>
       </div>
     </div>
   </div>
@@ -297,12 +297,22 @@
     let traps = calcTraps(world, sub, SIZE);
     let castle = {x: SIZE-1, y: Math.floor(SIZE/2)};
 
-    /* ---- イベント（スマホ確実対応） ---- */
-    const startNow = ()=>{ intro.classList.add('hidden'); startStage(); };
-    introStart.addEventListener('pointerup', startNow);
-    introStart.addEventListener('click',     startNow);
-    introStart.addEventListener('keydown',   e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); startNow(); } });
-    intro.addEventListener('pointerup', e=>{ if(!e.target.closest('#introStart')) startNow(); });
+    /* ---- イベント（スマホ確実対応・二重発火防止） ---- */
+    const startNow = (e)=>{
+      if(e){ e.preventDefault(); e.stopPropagation(); }
+      if (intro.classList.contains('hidden')) return;
+      intro.classList.add('hidden');
+      startStage();
+    };
+    // ボタン：あらゆる入力を拾う
+    introStart.addEventListener('pointerdown', startNow, {passive:false});
+    introStart.addEventListener('touchend',    startNow, {passive:false});
+    introStart.addEventListener('mouseup',     startNow, {passive:false});
+    introStart.addEventListener('click',       startNow, {passive:false});
+    introStart.addEventListener('keydown',     (e)=>{ if(e.key==='Enter'||e.key===' '){ startNow(e); } }, {passive:false});
+    // オーバーレイ空白タップでも開始（保険）
+    intro.addEventListener('touchend', (e)=>{ if(!e.target.closest('#introStart')) startNow(e); }, {passive:false});
+    intro.addEventListener('click',     (e)=>{ if(!e.target.closest('#introStart')) startNow(e); }, {passive:false});
 
     ovNext.addEventListener('click', ()=>{ hideOverlay(); advanceStage(); showIntro(); });
     ovRetry.addEventListener('click', ()=>{ hideOverlay(); showIntro(true); });
@@ -481,20 +491,4 @@
 
     function setMsg(t, lose=false, win=false){
       msgEl.className=''; if(lose) msgEl.classList.add('lose'); if(win) msgEl.classList.add('win');
-      safeText(msgEl, t);
-    }
-    function revealAll(){ for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++) revealed[y][x]=true; }
-
-    function advanceStage(){
-      if(sub < SUBS_PER_WORLD){ sub += 1; }
-      else { sub = 1; world = Math.min(MAX_WORLD, world + 1); }
-      persist();
-    }
-
-    /* ===== イントロ（セルサイズのステージバッジ表示） ===== */
-    function showIntro(){
-      SIZE = calcSize(world, sub);
-      traps = calcTraps(world, sub, SIZE);
-      const label = `${world}-${pad2(sub)}`;
-      safeText(stageBadge, label);
-      safeText(worldPill,  `Worl
+    
