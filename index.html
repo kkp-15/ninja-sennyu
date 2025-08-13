@@ -1,351 +1,462 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
+<meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>忍者潜入の術 🏯（8×8・単一ファイル）</title>
+<title>忍者潜入🏯 — 5×5開始／ステージバッジ=セルサイズ</title>
 <style>
   :root{
-    --bg:#0a0f1c; --panel:#111a2e; --text:#eef3ff; --muted:#a8b7d3;
-    --cell:48px; --accent:#8bd3ff; --danger:#ff6b6b; --ok:#c7f0c7;
+    --bg:#0a0f1c; --text:#eef3ff; --muted:#a8b7d3;
+    --cell:44px; /* セルサイズ（必要なら 40〜56px などに調整） */
+    --covered1:#1a2b52; --covered2:#132447; --covered-border:#3a5a94;
+    --open1:#0f1b37; --open2:#0a1430; --open-border:#2c497b;
+    --frontier:#46e1ff; --frontier-glow:#46e1ff55;
+    --locked-stripe:#ffffff15;
+    --start-outline:#8bd3ff; --trap-bg:#7a2a2a; --trap-border:#b33a3a;
+    --castle-glow:#ffd54f; --focus:#00e5ff;
+    --ok:#b4ffb4; --ng:#ff9b9b;
   }
-  *{box-sizing:border-box} html,body{height:100%}
+  *{box-sizing:border-box}
+  html,body{height:100%}
   body{
     margin:0; background:linear-gradient(180deg,#091327,#0a0f1c); color:var(--text);
     font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
-    display:flex; flex-direction:column;
+    display:flex; flex-direction:column; align-items:center;
   }
-  .wrap{ width:100%; max-width:860px; margin:0 auto; padding:12px 16px; }
-  h1{ margin:.4rem 0 .2rem; letter-spacing:.03em }
-  .sub{ margin:0 0 .6rem; color:var(--muted) }
+  .wrap{width:100%;max-width:980px;padding:14px 16px}
+  header h1{margin:.2em 0 .1em}
+  .sub{color:var(--muted);margin:.1rem 0 .6rem}
 
-  .toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center }
-  .btn{
-    background:#16264a; border:2px solid #2a4272; color:#eaf1ff; padding:10px 14px; border-radius:12px;
-    font-weight:700; cursor:pointer; box-shadow:0 3px 10px rgba(0,0,0,.35);
+  .hud{
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:center;
+    background:#0b1630; border:1px solid #263f6a; border-radius:12px; padding:8px 10px; margin-bottom:.5rem;
   }
-  .btn:hover{ filter:brightness(1.08) }
-  .btn.ghost{ background:transparent }
+  .pill{padding:.35em .7em; border-radius:999px; border:1px solid #37568f; background:#0f1b37; font-weight:800}
+  .linkbtn{
+    appearance:none; border:0; background:transparent; color:#8bd3ff; font-weight:800; cursor:pointer; text-decoration:underline;
+  }
+  .linkbtn:hover{filter:brightness(1.1)}
 
-  details{ margin-left:auto }
-  details>summary{ cursor:pointer; padding:8px 10px; border-radius:10px; border:1px solid #29406c; }
-  details label{ display:block; margin-top:8px; color:#cfe0ff }
-  #trapCountVal{ display:inline-block; width:2rem; text-align:right; margin-left:4px }
-
+  /* 盤：左端合わせ＋スクロール */
+  #boardWrap{
+    width:100%;
+    display:flex;
+    justify-content:flex-start;
+    margin:.5rem 0;
+    padding-left:  max(12px, env(safe-area-inset-left));
+    padding-right: max(6px,  env(safe-area-inset-right));
+    overflow:auto; -webkit-overflow-scrolling:touch;
+    max-height:70vh;
+    border-radius:16px;
+  }
   #board{
-    display:grid; grid-template-columns:repeat(8, var(--cell)); gap:6px;
-    background:#0b1734; border:2px solid #233a64; padding:12px; border-radius:16px;
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.05), 0 14px 38px rgba(0,0,0,.45);
+    display:grid; gap:7px; grid-template-columns:repeat(8,var(--cell)); /* JSで列数更新 */
+    width:max-content;
+    background:#0b1734; border:2px solid #233a64; padding:14px; border-radius:16px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 16px 40px rgba(0,0,0,.5);
     touch-action:manipulation;
   }
+
   .cell{
-    width:var(--cell); height:var(--cell); border-radius:10px;
+    width:var(--cell); height:var(--cell); border-radius:12px; position:relative;
     display:flex; align-items:center; justify-content:center; user-select:none;
-    font-weight:900; font-size:calc(var(--cell)*0.52); line-height:1;
-    background:linear-gradient(180deg,#16264a,#132650); border:2px solid #3b5a93; color:#e9f1ff;
-    transition:filter .12s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
-    cursor:pointer; position:relative;
+    font-weight:900; font-size:calc(var(--cell)*0.5);
+    background:linear-gradient(180deg,var(--covered1),var(--covered2));
+    border:2px solid var(--covered-border); color:#e9f1ff; cursor:pointer;
+    transition:transform .06s ease, filter .12s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
   }
-  .cell:hover{ filter:brightness(1.06) }
-  .cell.open{
-    background:linear-gradient(180deg,#0f1a33,#0a1430); border-color:#2e4677; cursor:default;
-    box-shadow:inset 0 2px 8px rgba(0,0,0,.45);
+  .cell:hover{filter:brightness(1.07)} .cell:active{transform:translateY(1px)}
+  .cell:focus-visible{outline:3px solid var(--focus); outline-offset:2px}
+
+  .cell.open{ background:linear-gradient(180deg,var(--open1),var(--open2)); border-color:var(--open-border); cursor:default; box-shadow:inset 0 3px 10px rgba(0,0,0,.45) }
+  .cell.locked{
+    cursor:not-allowed; opacity:.50;
+    background:repeating-linear-gradient(135deg,var(--locked-stripe) 0 8px,transparent 8px 16px),linear-gradient(180deg,var(--covered1),var(--covered2));
   }
-  .cell.start{ outline:2px dashed rgba(139,211,255,.45); outline-offset:-2px }
-  .cell.castle::after{ content:"🏯"; position:absolute; font-size:calc(var(--cell)*0.6) }
-  .cell.trap{ background:#5a1a1a; border-color:#8a2a2a; color:#fff }
-  .cell.safe0{ color:#b7c7e6 }
-  .num1{color:#74b6ff}.num2{color:#6fe8a1}.num3{color:#ffd166}.num4{color:#c3a1ff}
-  .num5{color:#ffb354}.num6{color:#89ddff}.num7{color:#ff9090}.num8{color:#ffffff}
+  .cell.frontier{
+    box-shadow:0 0 0 3px var(--frontier) inset, 0 0 16px 2px var(--frontier-glow);
+    border-color:#4bd3ff; filter:brightness(1.06);
+    animation:pulse 1.2s ease-in-out infinite alternate;
+  }
+  @keyframes pulse{
+    0%{ box-shadow:0 0 0 2px var(--frontier) inset, 0 0 10px 1px var(--frontier-glow) }
+    100%{ box-shadow:0 0 0 4px var(--frontier) inset, 0 0 20px 3px var(--frontier-glow) }
+  }
+  .cell.start{ outline:2px dashed var(--start-outline); outline-offset:-2px }
+  .cell.castle::after{ content:"🏯"; position:absolute; font-size:calc(var(--cell)*0.62); filter:drop-shadow(0 0 6px rgba(255,213,79,.35)) }
+  .cell.trap{ background:linear-gradient(180deg,var(--trap-bg),#4f1111); border-color:var(--trap-border) }
+  .safe0{ color:#c6d6f5; opacity:.95 }
+  .n1{color:#76b7ff}.n2{color:#55d68c}.n3{color:#ffc14d}.n4{color:#c5a3ff}
+  .n5{color:#ff9a6b}.n6{color:#8fe3ff}.n7{color:#ff7d92}.n8{color:#ffffff}
 
-  .badge{ padding:8px 10px; border:1px solid #29406c; border-radius:10px; color:#d8e7ff; min-width:110px; text-align:center }
-  .message{ min-height:1.6em; margin:.6rem 0; font-weight:700 }
-  .muted{ color:var(--muted) }
+  /* 忍者バッジ（数字を隠さない右下） */
+  .cell.ninja::before{
+    content:"🥷";
+    position:absolute; right:2px; bottom:2px;
+    font-size:calc(var(--cell)*0.36);
+    line-height:1; pointer-events:none; filter:drop-shadow(0 0 3px rgba(0,0,0,.4));
+    opacity:0.9; z-index:1;
+  }
 
-  @media (max-width:420px){ :root{ --cell:42px } }
-  @media (prefers-reduced-motion:reduce){ *{ transition:none !important; animation:none !important } }
+  .bar{display:flex;gap:12px;justify-content:center;align-items:center;margin:.35rem 0;flex-wrap:wrap}
+  .btn{ background:#16264a;border:2px solid #2a4272;color:#eaf1ff;border-radius:14px;font-weight:900;cursor:pointer; box-shadow:0 3px 10px rgba(0,0,0,.35); transition:transform .06s ease,filter .12s ease }
+  .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
+  .btn-lg{ font-size:1.2rem; padding:16px 26px; width:min(560px,92vw); }
+
+  #message{min-height:1.8em;text-align:center;font-weight:900}
+  #message.win{color:var(--ok)} #message.lose{color:var(--ng)}
+
+  .shake{ animation:shake .5s ease both 0s 1 }
+  @keyframes shake{ 0%,100%{transform:translateX(0)} 20%{transform:translateX(-10px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(4px)} }
+  .flash{ position:fixed; inset:0; background:rgba(255,0,0,.16); pointer-events:none; animation:flashOut .5s ease both }
+  @keyframes flashOut{ from{opacity:.9} to{opacity:0} }
+
+  .overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center, rgba(0,0,0,.35), rgba(0,0,0,.7)); z-index:10 }
+  .overlay .panel{ background:#0f1b37; border:2px solid #2a4272; border-radius:18px; padding:24px; text-align:center; width:min(640px,92vw); box-shadow:0 20px 60px rgba(0,0,0,.6) }
+  .overlay h2{ margin:.2em 0 .2em; font-size:2rem }
+  .hidden{ display:none }
+
+  /* ステージバッジ（セルと同じサイズ） */
+  .stage-badge{
+    width:var(--cell); height:var(--cell);
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius:12px;
+    background:linear-gradient(180deg,var(--covered1),var(--covered2));
+    border:2px solid var(--covered-border);
+    font-weight:900; font-size:calc(var(--cell)*0.34); /* 文字が収まるよう少し小さめ */
+    letter-spacing:0.5px;
+    color:#e9f1ff;
+    box-shadow:inset 0 3px 10px rgba(0,0,0,.35);
+  }
+  .badge-row{display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:10px}
+  .badge-label{font-size:1rem; color:#cfe2ff99; margin-right:6px}
+
+  .confetti{ position:fixed; left:0; top:-10vh; width:100%; height:110vh; pointer-events:none; z-index:11; overflow:visible }
+  .confetti span{ position:absolute; font-size:28px; animation:fall linear forwards; opacity:.95; }
+  @keyframes fall{ 0%{ transform:translateY(-10vh) rotate(0deg) } 100%{ transform:translateY(110vh) rotate(360deg) } }
+
+  @media (max-width:420px){ .btn-lg{font-size:1.1rem} }
 </style>
 </head>
 <body>
   <header class="wrap">
-    <h1>忍者潜入の術 🏯</h1>
-    <p class="sub">左端から🏯まで<strong>上下左右だけ</strong>で道をつなげろ（斜め移動なし）</p>
-
-    <div class="toolbar">
-      <button id="newBtn" class="btn">新しい任務</button>
-      <button id="dailyBtn" class="btn">日替わり任務</button>
-      <span id="status" class="badge" aria-live="polite"></span>
-
-      <details>
-        <summary>設定</summary>
-        <label>
-          ヒント（数字の数え方）：
-          <select id="hintMode">
-            <option value="8">8方向（濃いヒント）</option>
-            <option value="4">4方向（薄いヒント）</option>
-          </select>
-        </label>
-        <label>
-          罠の数：
-          <input id="trapCount" type="range" min="8" max="18" step="1" value="10" />
-          <span id="trapCountVal">10</span>
-        </label>
-        <label>
-          開幕で左端の中央を自動オープン
-          <input id="autoOpen" type="checkbox" checked />
-        </label>
-      </details>
+    <h1>忍者潜入🏯</h1>
+    <div class="hud" aria-label="説明と進行状況">
+      <span class="pill" id="worldPill">World 1-01</span>
+      <span class="pill" id="sizePill">Size: 5×5</span>
+      <span class="pill" id="trapPill">罠: 6</span>
+      <span class="pill">数字＝そのマスの <b>周囲8方向</b> にある罠の数</span>
+      <button class="linkbtn" id="resetProgress">進行状況をリセット</button>
     </div>
+    <p class="sub">
+      ルール：左端から<strong>順番に</strong>／上下OK・斜めNG／0でも自動連鎖なし。<br>
+      見分け方：<b>光る縁＝今開けられる</b>、<b>濃色＝開いた</b>、<b>ストライプ＝まだ</b>。タップ位置に🥷（右下バッジ）表示。
+    </p>
   </header>
 
   <main class="wrap">
-    <div id="board" role="grid" aria-label="ゲーム盤面 8×8"></div>
-    <p id="message" class="message" aria-live="polite"></p>
+    <div id="boardWrap">
+      <div id="board" role="grid" aria-label="ゲーム盤面"></div>
+    </div>
+
+    <div class="bar">
+      <button id="retry" class="btn btn-lg">🔁 同じステージをやり直す</button>
+    </div>
+
+    <p id="message" aria-live="polite"></p>
   </main>
 
-  <footer class="wrap">
-    <button id="retryBtn" class="btn ghost">もう一度</button>
-    <span class="muted">ヒントは設定から4/8方向を切替できます。</span>
-  </footer>
+  <!-- ステージ開始：セルサイズのステージバッジ＋スタート -->
+  <div id="stageIntro" class="overlay" aria-modal="true" role="dialog">
+    <div class="panel">
+      <div class="badge-row">
+        <span class="badge-label">ステージ</span>
+        <span id="stageBadge" class="stage-badge">1-01</span>
+      </div>
+      <button id="introStart" class="btn btn-lg">▶ スタート</button>
+    </div>
+  </div>
+
+  <!-- 成否オーバーレイ -->
+  <div id="overlay" class="overlay hidden" aria-modal="true" role="dialog">
+    <div class="panel">
+      <h2 id="ovTitle">🎉 潜入成功！</h2>
+      <p id="ovDesc">本丸に到達！</p>
+      <div style="margin-top:12px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap">
+        <button id="ovNext" class="btn btn-lg">⤴ 次のステージへ</button>
+        <button id="ovRetry" class="btn btn-lg">🔁 同じステージ</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confetti" class="confetti hidden"></div>
 
 <script>
-/* ========== 忍者潜入 8x8 / 単一ファイル版 ========== */
-const SIZE = 8;
-let TRAPS = 10;
-let HINT_MODE = localStorage.getItem("hintMode") || "8"; // "8" or "4"
-let AUTO_OPEN = (localStorage.getItem("autoOpen") ?? "1") === "1";
+/* ===== 最初は5×5、以降8×8／ステージバッジ=セルサイズ／タイマー無し ===== */
+(function(){
+  const $id=(id)=>document.getElementById(id);
+  const safeText=(el,t)=>{ if(el) el.textContent=t; };
 
-const boardEl = document.getElementById("board");
-const msgEl = document.getElementById("message");
-const statusEl = document.getElementById("status");
-const trapCountEl = document.getElementById("trapCount");
-const trapCountValEl = document.getElementById("trapCountVal");
-const hintModeEl = document.getElementById("hintMode");
-const autoOpenEl = document.getElementById("autoOpen");
+  function main(){
+    // DOM
+    const boardEl   = $id('board');
+    const msgEl     = $id('message');
+    const sizePill  = $id('sizePill');
+    const trapPill  = $id('trapPill');
+    const worldPill = $id('worldPill');
 
-hintModeEl.value = HINT_MODE;
-autoOpenEl.checked = AUTO_OPEN;
-trapCountValEl.textContent = trapCountEl.value;
-TRAPS = +trapCountEl.value;
+    const intro     = $id('stageIntro');
+    const introStart= $id('introStart');
+    const stageBadge= $id('stageBadge');
 
-trapCountEl.addEventListener("input", () => {
-  TRAPS = +trapCountEl.value;
-  trapCountValEl.textContent = TRAPS;
-});
-hintModeEl.addEventListener("change", () => {
-  HINT_MODE = hintModeEl.value;
-  localStorage.setItem("hintMode", HINT_MODE);
-  status("ヒント: " + (HINT_MODE==="8"?"8方向":"4方向"));
-});
-autoOpenEl.addEventListener("change", () => {
-  AUTO_OPEN = autoOpenEl.checked;
-  localStorage.setItem("autoOpen", AUTO_OPEN ? "1" : "0");
-});
+    const overlay   = $id('overlay');
+    const ovTitle   = $id('ovTitle');
+    const ovDesc    = $id('ovDesc');
+    const ovNext    = $id('ovNext');
+    const ovRetry   = $id('ovRetry');
 
-document.getElementById("newBtn").addEventListener("click", () => startNew());
-document.getElementById("dailyBtn").addEventListener("click", () => startDaily());
-document.getElementById("retryBtn").addEventListener("click", () => startNew());
+    const retryBtn  = $id('retry');
+    const resetBtn  = $id('resetProgress');
+    const confetti  = $id('confetti');
 
-/* ---- 乱数＆シード ---- */
-function mulberry32(a){ return function(){ let t=a+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; } }
-function strToSeed(str){ let h=2166136261>>>0; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
-function todaySeed(){
-  const d = new Date(); const y=d.getFullYear(), m=("0"+(d.getMonth()+1)).slice(-2), day=("0"+d.getDate()).slice(-2);
-  return `${y}${m}${day}`;
-}
-
-/* ---- ゲーム状態 ---- */
-let rng, state;
-
-function startNew(seed=null){
-  const useSeed = seed || Math.random().toString(36).slice(2);
-  rng = mulberry32(strToSeed(useSeed));
-  initGame();
-  status("任務開始");
-}
-function startDaily(){
-  const seed = todaySeed();
-  rng = mulberry32(strToSeed(seed));
-  initGame();
-  status("日替わり任務 " + seed);
-}
-
-function initGame(){
-  msg(""); // clear
-  const castlePos = { x: SIZE-1, y: Math.floor(SIZE/2) };
-  const startRow  = Math.floor(SIZE/2);
-
-  // 盤面初期化
-  const board = Array.from({length:SIZE},()=>Array(SIZE).fill(0));
-  const revealed = Array.from({length:SIZE},()=>Array(SIZE).fill(false));
-  const trapSet = new Set();
-
-  // 左→右の安全ルートを1本作る（4方向で進む）
-  const path = generatePath(startRow, castlePos);
-
-  // 罠配置：ルート上と左端、🏯は除外
-  let placed = 0;
-  while (placed < TRAPS) {
-    const x = Math.floor(rng()*SIZE);
-    const y = Math.floor(rng()*SIZE);
-    if (x===0) continue;
-    if (x===castlePos.x && y===castlePos.y) continue;
-    if (path.some(p=>p.x===x && p.y===y)) continue;
-    const key = y*SIZE+x;
-    if (trapSet.has(key)) continue;
-    trapSet.add(key);
-    board[y][x] = "B";
-    placed++;
-  }
-
-  // 数字計算（4/8方向は設定で）
-  for(let y=0;y<SIZE;y++){
-    for(let x=0;x<SIZE;x++){
-      if (board[y][x]==="B") continue;
-      board[y][x] = countAround(x,y,board, HINT_MODE==="8");
+    if(!boardEl||!msgEl||!sizePill||!trapPill||!worldPill||!intro||!overlay||!introStart||!stageBadge){
+      console.error('必要なDOMが見つかりません'); return;
     }
-  }
 
-  // 開幕：左端中央を自動オープン（設定ON時）
-  if (AUTO_OPEN) openCell(startRow, 0, board, revealed, castlePos);
+    // ステージ設定
+    const MAX_WORLD = 5, SUBS_PER_WORLD = 5;
+    function calcSize(world, sub){
+      // 最初のみ 5×5、それ以降は 8×8
+      return (world===1 && sub===1) ? 5 : 8;
+    }
+    const TRAP_CAP_RATIO = 0.28;
+    function calcTraps(world, sub, size){
+      const base = (size===5) ? 6 : 10;     // 5×5は6個、8×8は10個を基準
+      const stepWorld = 3, stepSub = 2;
+      const raw = base + (world-1)*stepWorld + (sub-1)*stepSub;
+      const cap = Math.floor(size*size*TRAP_CAP_RATIO);
+      return Math.min(cap, Math.max(4, raw));
+    }
 
-  render(board, revealed, castlePos);
-  state = { board, revealed, castlePos };
-}
+    // 進行（保存）
+    let world = clamp(1, MAX_WORLD, Number(localStorage.getItem('sennyu_world')||1));
+    let sub   = clamp(1, SUBS_PER_WORLD, Number(localStorage.getItem('sennyu_sub')||1));
 
-function generatePath(startRow, castlePos){
-  const path = [];
-  let x=0, y=startRow;
-  path.push({x,y});
-  const maxStep = SIZE*SIZE*4; let step=0;
-  while ((x!==castlePos.x || y!==castlePos.y) && step++<maxStep){
-    const moves=[];
-    if (x<castlePos.x) moves.push({dx:1,dy:0,w:0.65}); // 右を強め
-    if (y>castlePos.y) moves.push({dx:0,dy:-1,w:0.175});
-    if (y<castlePos.y) moves.push({dx:0,dy:1,w:0.175});
-    // 少し上下に散らす
-    if (rng()<0.25 && y>0) moves.push({dx:0,dy:-1,w:0.05});
-    if (rng()<0.25 && y<SIZE-1) moves.push({dx:0,dy:1,w:0.05});
+    // 盤面
+    let SIZE = calcSize(world, sub);
+    let board=[], revealed=[], ninjaPos=null;
+    let traps = calcTraps(world, sub, SIZE);
+    let castle = {x: SIZE-1, y: Math.floor(SIZE/2)};
 
-    let r=rng(), acc=0, chosen=moves[0]||{dx:1,dy:0};
-    for(const m of moves){ acc+=m.w; if(r<=acc){ chosen=m; break; } }
-    x=Math.max(0,Math.min(SIZE-1,x+chosen.dx));
-    y=Math.max(0,Math.min(SIZE-1,y+chosen.dy));
-    if (!path.some(p=>p.x===x && p.y===y)) path.push({x,y});
-  }
-  path[path.length-1] = {x:castlePos.x, y:castlePos.y};
-  return path;
-}
+    // イベント
+    introStart.addEventListener('click', ()=>{ intro.classList.add('hidden'); startStage(); });
+    ovNext.addEventListener('click', ()=>{ hideOverlay(); advanceStage(); showIntro(); });
+    ovRetry.addEventListener('click', ()=>{ hideOverlay(); showIntro(true); });
+    retryBtn.addEventListener('click', ()=>{ hideOverlay(); showIntro(true); });
+    resetBtn.addEventListener('click', ()=>{
+      if(confirm('World 1-01 からやり直しますか？')){
+        world=1; sub=1; persist(); showIntro(true);
+      }
+    });
 
-function countAround(x,y,board,use8){
-  let c=0;
-  const dirs8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
-  const dirs4=[[1,0],[-1,0],[0,1],[0,-1]];
-  const dirs = use8?dirs8:dirs4;
-  for(const [dx,dy] of dirs){
-    const nx=x+dx, ny=y+dy;
-    if(nx<0||nx>=SIZE||ny<0||ny>=SIZE) continue;
-    if(board[ny][nx]==="B") c++;
-  }
-  return c;
-}
+    // 起動：イントロ（スタート待ち）
+    showIntro();
 
-/* ---- 描画と操作 ---- */
-function render(board,revealed,castlePos){
-  boardEl.innerHTML = "";
-  for(let y=0;y<SIZE;y++){
-    for(let x=0;x<SIZE;x++){
-      const cell=document.createElement("button");
-      cell.type="button"; cell.className="cell";
-      cell.setAttribute("role","gridcell");
-      cell.setAttribute("aria-label", `y${y+1} x${x+1}`);
+    /* ===== 関数 ===== */
+    function persist(){
+      localStorage.setItem('sennyu_world', String(world));
+      localStorage.setItem('sennyu_sub',   String(sub));
+    }
+    function clamp(min,max,v){ return Math.max(min, Math.min(max, v)); }
+    function pad2(n){ return String(n).padStart(2,'0'); }
 
-      if (x===0) cell.classList.add("start");
-      if (x===castlePos.x && y===castlePos.y) cell.classList.add("castle");
+    function updateHud(){
+      safeText(worldPill, `World ${world}-${pad2(sub)}`);
+      safeText(sizePill,  `Size: ${SIZE}×${SIZE}`);
+      safeText(trapPill,  `罠: ${traps}`);
+    }
 
-      if (revealed[y][x]){
-        cell.classList.add("open");
-        if (board[y][x]==="B"){
-          cell.classList.add("trap"); cell.textContent="💥";
-        }else{
-          const n=board[y][x];
-          if (n===0){ cell.classList.add("safe0"); cell.textContent=""; }
-          else{ cell.textContent=n; cell.classList.add("num"+Math.min(8,Math.max(1,n))); }
+    function startStage(){
+      SIZE = calcSize(world, sub);
+      traps = calcTraps(world, sub, SIZE);
+      castle = {x: SIZE-1, y: Math.floor(SIZE/2)};
+      updateHud();
+      setMsg('');
+
+      // 盤生成
+      board = Array.from({length:SIZE},()=>Array(SIZE).fill(0));
+      revealed = Array.from({length:SIZE},()=>Array(SIZE).fill(false));
+      ninjaPos=null;
+
+      // 罠配置（左端＆城除外）
+      let placed=0;
+      while(placed<traps){
+        const x=Math.floor(Math.random()*SIZE);
+        const y=Math.floor(Math.random()*SIZE);
+        if(x===0) continue;
+        if(x===castle.x && y===castle.y) continue;
+        if(board[y][x]==='T') continue;
+        board[y][x]='T'; placed++;
+      }
+
+      // 数字（8方向）
+      for(let y=0;y<SIZE;y++){
+        for(let x=0;x<SIZE;x++){
+          if(board[y][x]==='T') continue;
+          board[y][x]=count8(x,y);
         }
       }
 
-      cell.addEventListener("click", ()=> openCell(y,x,board,revealed,castlePos));
-      cell.addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openCell(y,x,board,revealed,castlePos); } });
-
-      boardEl.appendChild(cell);
+      draw();
     }
-  }
-}
 
-function openCell(y,x,board,revealed,castlePos){
-  if (revealed[y][x]) return;
-  revealed[y][x] = true;
-
-  if (board[y][x]==="B"){
-    msg("💥 罠にかかった！"); vibrate(40);
-    revealAll(revealed); render(board,revealed,castlePos); return;
-  }
-  // 0なら上下左右に連鎖オープン
-  if (board[y][x]===0) floodRevealZeros(y,x,board,revealed);
-
-  render(board,revealed,castlePos);
-
-  if (checkClear(revealed,board,castlePos)){
-    msg("🎉 潜入成功！"); vibrate([20,30,20]);
-    revealAll(revealed); render(board,revealed,castlePos);
-  }
-}
-
-function floodRevealZeros(sy,sx,board,revealed){
-  const q=[{y:sy,x:sx}];
-  while(q.length){
-    const {y,x}=q.shift();
-    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
-      const nx=x+dx, ny=y+dy;
-      if(nx<0||nx>=SIZE||ny<0||ny>=SIZE) continue;
-      if(revealed[ny][nx]) continue;
-      if(board[ny][nx]==="B") continue;
-      revealed[ny][nx]=true;
-      if(board[ny][nx]===0) q.push({y:ny,x:nx});
+    function count8(x,y){
+      let c=0;
+      for(let dy=-1;dy<=1;dy++){
+        for(let dx=-1;dx<=1;dx++){
+          if(dx===0&&dy===0) continue;
+          const nx=x+dx, ny=y+dy;
+          if(nx<0||nx>=SIZE||ny<0||ny>=SIZE) continue;
+          if(board[ny][nx]==='T') c++;
+        }
+      }
+      return c;
     }
-  }
-}
 
-function checkClear(revealed,board,castlePos){
-  // 左端の開いた安全マスから4方向で🏯へ到達できたらクリア
-  const vis = Array.from({length:SIZE},()=>Array(SIZE).fill(false));
-  const q=[];
-  for(let y=0;y<SIZE;y++){
-    if (revealed[y][0] && board[y][0]!=="B"){ q.push({y,x:0}); vis[y][0]=true; }
-  }
-  while(q.length){
-    const {y,x}=q.shift();
-    if (x===castlePos.x && y===castlePos.y) return true;
-    for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
-      const nx=x+dx, ny=y+dy;
-      if(nx<0||nx>=SIZE||ny<0||ny>=SIZE) continue;
-      if(vis[ny][nx]) continue;
-      if(revealed[ny][nx] && board[ny][nx]!=="B"){ vis[ny][nx]=true; q.push({y:ny,x:nx}); }
+    // 左から順：左端OK、同列上下OK、左隣OK（斜め不可）
+    function canOpen(x,y){
+      if(revealed[y][x]) return false;
+      if(x===0) return true;
+      if(y>0 && revealed[y-1][x]) return true;
+      if(y<SIZE-1 && revealed[y+1][x]) return true;
+      if(x>0 && revealed[y][x-1]) return true;
+      return false;
     }
+
+    function draw(){
+      boardEl.style.gridTemplateColumns = `repeat(${SIZE}, var(--cell))`;
+      boardEl.innerHTML='';
+      for(let y=0;y<SIZE;y++){
+        for(let x=0;x<SIZE;x++){
+          const el=document.createElement('button');
+          el.type='button'; el.className='cell'; el.setAttribute('role','gridcell');
+          el.setAttribute('aria-label',`行${y+1} 列${x+1}`);
+
+          const allowed = canOpen(x,y);
+
+          if(x===0) el.classList.add('start');
+          if(x===castle.x && y===castle.y) el.classList.add('castle');
+
+          if(!revealed[y][x]){
+            if(allowed) el.classList.add('frontier'); else el.classList.add('locked');
+          }else{
+            el.classList.add('open');
+            if(board[y][x]==='T'){ el.classList.add('trap'); el.textContent='💥'; }
+            else{
+              const n=board[y][x];
+              if(n===0) el.classList.add('safe0');
+              else { el.textContent=n; el.classList.add('n'+n); }
+            }
+          }
+
+          if (ninjaPos && ninjaPos.x===x && ninjaPos.y===y) el.classList.add('ninja');
+
+          el.addEventListener('click', ()=>onOpen(x,y));
+          el.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); onOpen(x,y); } });
+          boardEl.appendChild(el);
+        }
+      }
+    }
+
+    function onOpen(x,y){
+      if(!canOpen(x,y)){ setMsg('左端→到達済みの上下左右だけ開けられます。'); return; }
+      if(revealed[y][x]) return;
+
+      revealed[y][x]=true;
+      ninjaPos={x,y};
+
+      if(board[y][x]==='T'){
+        setMsg('💥 罠にかかった！', true);
+        explodeFX();
+        revealAll(); draw();
+        showLoseOverlay();
+        return;
+      }
+
+      draw();
+
+      if(x===castle.x && y===castle.y){
+        setMsg('🎉 潜入成功！', false, true);
+        celebrateFX();
+        revealAll(); draw();
+        showWinOverlay();
+      }
+    }
+
+    function setMsg(t, lose=false, win=false){
+      msgEl.className=''; if(lose) msgEl.classList.add('lose'); if(win) msgEl.classList.add('win');
+      safeText(msgEl, t);
+    }
+    function revealAll(){ for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++) revealed[y][x]=true; }
+
+    function advanceStage(){
+      if(sub < SUBS_PER_WORLD){ sub += 1; }
+      else { sub = 1; world = Math.min(MAX_WORLD, world + 1); }
+      persist();
+    }
+
+    /* ===== イントロ（セルサイズのステージバッジ表示） ===== */
+    function showIntro(retrySame=false){
+      SIZE = calcSize(world, sub);
+      traps = calcTraps(world, sub, SIZE);
+      const label = `${world}-${pad2(sub)}`;
+      safeText(stageBadge, label);
+      safeText(worldPill,  `World ${label}`);
+      safeText(trapPill,   `罠: ${traps}`);
+      safeText(sizePill,   `Size: ${SIZE}×${SIZE}`);
+      intro.classList.remove('hidden');
+    }
+
+    /* ===== 演出／オーバーレイ ===== */
+    function explodeFX(){
+      const wrap=$id('boardWrap');
+      if(wrap){ wrap.classList.add('shake'); setTimeout(()=>wrap.classList.remove('shake'),600); }
+      const flash=document.createElement('div'); flash.className='flash';
+      document.body.appendChild(flash); setTimeout(()=>flash.remove(),520);
+    }
+    function celebrateFX(){
+      const EMOJIS=['🎉','🎀','✨','💐','🥷','👑']; const pieces=46;
+      confetti.classList.remove('hidden'); confetti.innerHTML='';
+      for(let i=0;i<pieces;i++){
+        const s=document.createElement('span');
+        s.textContent=EMOJIS[i%EMOJIS.length];
+        s.style.left=Math.random()*100+'%';
+        s.style.animationDuration=(1.8+Math.random()*1.8)+'s';
+        s.style.animationDelay=(Math.random()*0.2)+'s';
+        confetti.appendChild(s);
+      }
+      setTimeout(()=>{ confetti.classList.add('hidden'); confetti.innerHTML=''; }, 2600);
+    }
+
+    function showWinOverlay(){
+      const isFinal = (world===MAX_WORLD && sub===SUBS_PER_WORLD);
+      safeText(ovTitle, isFinal ? '🏅 完全制覇！' : '🎉 潜入成功！');
+      safeText(ovDesc,  isFinal ? '全25面クリア！お見事！' : '本丸に到達！次のステージへ進めます。');
+      ovNext.classList.toggle('hidden', isFinal);
+      overlay.classList.remove('hidden');
+    }
+    function showLoseOverlay(){
+      safeText(ovTitle,'💥 任務失敗…');
+      safeText(ovDesc,'罠にかかった！同じステージで再挑戦。');
+      ovNext.classList.add('hidden');
+      overlay.classList.remove('hidden');
+    }
+    function hideOverlay(){ overlay.classList.add('hidden'); }
   }
-  return false;
-}
 
-function revealAll(revealed){
-  for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++) revealed[y][x]=true;
-}
-
-function msg(t){ msgEl.textContent=t; }
-function status(t){ statusEl.textContent=t; }
-function vibrate(p){ if(navigator.vibrate) navigator.vibrate(p); }
-
-/* 初期起動は“日替わり任務” */
-startDaily();
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', main); }
+  else { main(); }
+})();
 </script>
 </body>
 </html>
