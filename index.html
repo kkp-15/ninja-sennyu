@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>忍者潜入🏯 — ワールド内サイズ固定・完全制覇で最初へ・城前プレッシャー強化</title>
+<title>忍者潜入🏯 — 直線ブロック＆到達保証</title>
 <style>
   :root{
     --bg:#070c18; --text:#eef3ff;
@@ -24,6 +24,7 @@
     display:flex; flex-direction:column; align-items:center;
   }
 
+  /* 背景（グラデ＋ネオングリッド） */
   .bg{position:fixed; inset:-10vmax; z-index:-2; pointer-events:none;
     background:
       radial-gradient(1200px 800px at 10% -10%, #10306666, transparent 60%),
@@ -43,6 +44,7 @@
   header h1{margin:.2em 0 .1em}
   .sub{opacity:.85;margin:.2rem 0 .6rem}
 
+  /* 盤：左端合わせ＋スクロール */
   #boardWrap{
     width:100%; overflow:auto; -webkit-overflow-scrolling:touch;
     border-radius:16px; margin:.5rem 0;
@@ -83,7 +85,13 @@
   .safe0{ color:#c6d6f5; opacity:.95 }
   .n1{color:#76b7ff}.n2{color:#55d68c}.n3{color:#ffc14d}.n4{color:#c5a3ff}
   .n5{color:#ff9a6b}.n6{color:#8fe3ff}.n7{color:#ff7d92}.n8{color:#ffffff}
-  .cell.ninja::before{content:"🥷"; position:absolute; right:2px; bottom:2px; font-size:calc(var(--cell)*0.36)}
+
+  /* 忍者（右下バッジで数字を隠さない） */
+  .cell.ninja::before{
+    content:"🥷"; position:absolute; right:2px; bottom:2px;
+    font-size:calc(var(--cell)*0.36); line-height:1; pointer-events:none;
+    filter:drop-shadow(0 0 3px rgba(0,0,0,.4)); opacity:.92; z-index:1;
+  }
 
   .hud{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center; background:#0f1b37;border:1px solid #2a4272;border-radius:12px;padding:8px 10px;margin-bottom:.5rem}
   .pill{padding:.35em .7em;border-radius:999px;border:1px solid #37568f;background:#0f1b37;font-weight:800}
@@ -93,6 +101,7 @@
   .btn{ background:#16264a;border:2px solid #2a4272;color:#eaf1ff;border-radius:14px;font-weight:900;cursor:pointer;padding:12px 18px }
   .btn:hover{filter:brightness(1.08)}
 
+  /* イントロ（スタート小さめ） */
   .overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center, rgba(0,0,0,.35), rgba(0,0,0,.7)); z-index:10 }
   .overlay .panel{ background:#0f1b37; border:2px solid #2a4272; border-radius:18px; padding:18px; text-align:center; width:min(520px,92vw) }
   .overlay .panel .btn{ font-size:1rem; padding:10px 16px } /* スタート小さめ */
@@ -172,12 +181,12 @@
   const boardEl = $('board'), wrapEl = $('boardWrap'), msgEl = $('message');
   const stagePill=$('stagePill'), sizePill=$('sizePill'), trapPill=$('trapPill');
   const intro = $('intro'), startBtn = $('start'), badge=$('badge');
-  const ov = $('ov'), ovTitle=$('ovTitle'), ovDesc=$('ovDesc'), nextBtn=$('next'), againBtn=$('again'), retryBtn=$('retry'), ovBtns=$('ovBtns');
+  const ov = $('ov'), ovTitle=$('ovTitle'), ovDesc=$('ovDesc'), nextBtn=$('next'), againBtn=$('again'), retryBtn=$('retry');
   if(!boardEl||!wrapEl||!msgEl||!stagePill||!sizePill||!trapPill||!intro||!startBtn||!badge||!ov||!ovTitle||!ovDesc||!nextBtn||!againBtn||!retryBtn){
     alert('初期化失敗：要素が見つかりません'); return;
   }
 
-  // ===== 設定：ワールド内はサイズ固定、サブで罠増加 =====
+  /* ===== 設定：ワールド内はサイズ固定、サブで罠増加 ===== */
   const MAX_WORLD=5, SUBS=5;
   let world=1, sub=1;
   let SIZE=5, TRAPS=6, board=[], revealed=[], ninja=null, castle={x:4,y:2};
@@ -211,7 +220,8 @@
   startBtn.addEventListener('click', startNow, {passive:false});
   startBtn.addEventListener('touchend', startNow, {passive:false});
 
-  function startStage(){
+  /* ================= 盤生成 ================= */
+  function startStage(attempt=0){
     SIZE = sizeOfWorld(world);
     TRAPS = trapsOf(SIZE, sub);
     castle = {x: SIZE-1, y: Math.floor(SIZE/2)};
@@ -224,8 +234,9 @@
     board = Array.from({length:SIZE},()=>Array(SIZE).fill(0));
     revealed = Array.from({length:SIZE},()=>Array(SIZE).fill(false));
 
-    // 通路を確定（斜めなし）
-    const path = buildPath(SIZE, castle.y); path.add(`${castle.x},${castle.y}`);
+    // 通路：最後は上下から入城（左直線不可）
+    const path = buildPath(SIZE, castle.y);
+    path.add(`${castle.x},${castle.y}`);
 
     // ランダム罠（通路・左端・🏯は除外）
     let placed=0, tries=0, maxTries=SIZE*SIZE*20;
@@ -238,33 +249,49 @@
       board[y][x]='T'; placed++;
     }
 
-    // 🛡 城前プレッシャー強化：城の左マスの隣接に最低1罠
-    enforceCastlePressure(path);
+    // 直線封じ＆城前の圧を保証
+    blockCastleLeft(path);        // 🧱 城の左マス（SIZE-2, cy）を必ず罠に
+    enforceCastlePressure(path);  // 🛡 左マス周辺8に最低1罠（難度の底上げ）
+
+    // 到達性チェック（極稀に配置の関係で通路が途切れるのを防ぐ）
+    if(!isReachable()){
+      if(attempt < 50) return startStage(attempt+1);
+      console.warn('到達性の確保に失敗（50回超）'); // ほぼ起きません
+    }
 
     // 数字計算
     for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++){
-      if(board[y][x]==='T') continue;
-      board[y][x]=count8(x,y);
+      if(board[y][x]!=='T'){ board[y][x]=count8(x,y); }
     }
 
     draw();
   }
 
+  /* === ルート：最後は上下から入城 === */
   function buildPath(size, cy){
     let y = Math.floor(Math.random()*size);
     const s = new Set();
-    for(let x=0;x<=size-1;x++){
+    for(let x=0; x<=size-1; x++){
       s.add(`${x},${y}`);
-      if(x<size-1){
-        if(y<cy && Math.random()<0.5){ y++; s.add(`${x},${y}`); }
-        else if(y>cy && Math.random()<0.5){ y--; s.add(`${x},${y}`); }
+
+      // 城の1つ左に到達＆同じ行なら上下へ一段ずらす
+      if (x === size-2 && y === cy){
+        if (y+1 < size) { y++; } else { y--; }
+        s.add(`${x},${y}`);
+      }
+
+      if(x < size-1){
+        if(y < cy && Math.random()<0.5){ y++; s.add(`${x},${y}`); }
+        else if(y > cy && Math.random()<0.5){ y--; s.add(`${x},${y}`); }
       }
     }
+    // 最終列で縦に寄せる
     while(y<cy){ y++; s.add(`${size-1},${y}`); }
     while(y>cy){ y--; s.add(`${size-1},${y}`); }
     return s;
   }
 
+  /* === カウント === */
   function count8(x,y){
     let c=0;
     for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
@@ -276,64 +303,96 @@
     return c;
   }
 
-  // 🛡 城前プレッシャー：城の左マス(LC)の周囲8に最低1罠を“他所の罠を移動”して確保（通路・左端・🏯は避ける）
+  /* === 左直線ブロック：城の左マスを必ず罠に === */
+  function blockCastleLeft(path){
+    const lcx = castle.x-1, lcy = castle.y;
+    if(lcx<0) return;
+    if(board[lcy][lcx] === 'T') return;        // 既に罠ならOK
+    if(path.has(`${lcx},${lcy}`)) return;      // 通路なら置かない（buildPathで基本通らない）
+
+    // “移動元”の罠（通路/左端/城/左隣は除外）
+    const donors=[];
+    for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++){
+      if(board[y][x]!=='T') continue;
+      if(x===0) continue;
+      if(x===castle.x && y===castle.y) continue;
+      if(x===lcx && y===lcy) continue;
+      if(path.has(`${x},${y}`)) continue;
+      donors.push({x,y});
+    }
+    if(!donors.length) return;
+    const d = donors[Math.floor(Math.random()*donors.length)];
+    board[d.y][d.x]=0;
+    board[lcy][lcx]='T';
+  }
+
+  /* === 城前プレッシャー：左マスの周囲8に最低1罠 === */
   function enforceCastlePressure(path){
     const lcx = castle.x-1, lcy = castle.y;
     if(lcx<0) return;
 
-    const countT = (x,y)=>{
-      let c=0;
+    const hasNearbyTrap = ()=>{
       for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
         if(!dx&&!dy) continue;
-        const nx=x+dx, ny=y+dy;
+        const nx=lcx+dx, ny=lcy+dy;
         if(nx<0||ny<0||nx>=SIZE||ny>=SIZE) continue;
-        if(board[ny][nx]==='T') c++;
+        if(board[ny][nx]==='T') return true;
       }
-      return c;
+      return false;
     };
+    if(hasNearbyTrap()) return;
 
-    if(countT(lcx,lcy) >= 1) return; // 既に圧あり
-
-    // 罠を置ける候補（LCの8近傍）
-    const nearCandidates=[];
+    const candidates=[];
     for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
       if(!dx&&!dy) continue;
       const nx=lcx+dx, ny=lcy+dy;
       if(nx<0||ny<0||nx>=SIZE||ny>=SIZE) continue;
-      if(nx===castle.x && ny===castle.y) continue; // 🏯
-      if(nx===0) continue;                         // 左端禁止
-      if(path.has(`${nx},${ny}`)) continue;        // 通路を壊さない
-      if(board[ny][nx]==='T') { /* 既に罠ならOK */ return; }
-      nearCandidates.push({nx,ny});
+      if(nx===castle.x && ny===castle.y) continue;
+      if(nx===0) continue;
+      if(path.has(`${nx},${ny}`)) continue;
+      if(board[ny][nx]!=='T') candidates.push({nx,ny});
+      else return; // 既に罠があるならOK
     }
+    if(!candidates.length) return;
 
-    if(nearCandidates.length===0) return; // 置ける場所がない
-
-    // “移動元”の罠（遠めで通路でも城前近傍でもないもの）
+    // ドナー探し（できるだけ遠く）
     const donors=[];
     for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++){
-      if(board[y][x]!=='T') continue;
-      if(path.has(`${x},${y}`)) continue;          // 通路の罠は存在しないはずだけど保険
-      if(x===0) continue;                           // 左端禁止
-      const manh = Math.abs(x-(lcx))+Math.abs(y-(lcy));
-      if(manh>2) donors.push({x,y});
-    }
-    // ドナーが無ければ、近傍以外の任意の罠からでも移動
-    if(donors.length===0){
-      for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++){
-        if(board[y][x]==='T' && !path.has(`${x},${y}`) && x!==0) donors.push({x,y});
+      if(board[y][x]==='T' && x!==0 && !(x===castle.x && y===castle.y) && !path.has(`${x},${y}`)){
+        const manh=Math.abs(x-lcx)+Math.abs(y-lcy);
+        if(manh>2) donors.push({x,y});
       }
     }
-    if(donors.length===0) return; // どうしても移せない場合は諦め（稀）
-
-    // 実際に“移動”
-    const target = nearCandidates[Math.floor(Math.random()*nearCandidates.length)];
+    if(!donors.length) return;
+    const target = candidates[Math.floor(Math.random()*candidates.length)];
     const donor  = donors[Math.floor(Math.random()*donors.length)];
     board[donor.y][donor.x]=0;
     board[target.ny][target.nx]='T';
   }
 
-  // 左から順：左端OK、同列上下OK、左隣OK、斜めNG
+  /* === 到達性チェック：左端から🏯まで罠無しで到達可能？ === */
+  function isReachable(){
+    const tx=castle.x, ty=castle.y;
+    const seen=Array.from({length:SIZE},()=>Array(SIZE).fill(false));
+    const q=[];
+    for(let y=0;y<SIZE;y++){ q.push([0,y]); seen[y][0]=true; } // 左端すべてを起点
+    const dirs=[[1,0],[0,1],[0,-1],[-1,0]];
+    while(q.length){
+      const [x,y]=q.shift();
+      if(board[y][x]==='T') continue;
+      if(x===tx && y===ty) return true;
+      for(const [dx,dy] of dirs){
+        const nx=x+dx, ny=y+dy;
+        if(nx<0||ny<0||nx>=SIZE||ny>=SIZE) continue;
+        if(seen[ny][nx]) continue;
+        seen[ny][nx]=true;
+        q.push([nx,ny]);
+      }
+    }
+    return false;
+  }
+
+  /* === 開閉ロジック === */
   const canOpen=(x,y)=>{
     if(revealed[y][x]) return false;
     if(x===0) return true;
@@ -407,13 +466,12 @@
     setTimeout(()=>lay.remove(),2600);
   }
 
-  // === オーバーレイ ===
+  /* === オーバーレイ === */
   function showWin(){
     const isFinal = (world===MAX_WORLD && sub===SUBS);
     if(isFinal){
       txt(ovTitle,'🏅 完全制覇！');
       txt(ovDesc,'全25面クリア！最初の状態（1-1）から再開できます。');
-      // 「次へ」は隠し、「最初から」に文言変更
       nextBtn.classList.add('hidden');
       againBtn.textContent = '🔁 最初から';
     }else{
@@ -441,23 +499,11 @@
   againBtn.addEventListener('click', ()=>{
     const isFinal = (world===MAX_WORLD && sub===SUBS);
     hideOv();
-    if(isFinal){ world=1; sub=1; } // ← 完全制覇後は最初の状態へ
+    if(isFinal){ world=1; sub=1; } // 完全制覇後は最初へ
     showIntro(true);
   });
   retryBtn.addEventListener('click', ()=>{ hideOv(); showIntro(true); });
 
   function showIntro(same=false){
     const s = sizeOfWorld(world);
-    txt(badge, `${world}-${pad2(sub)}`);
-    txt(stagePill, `World ${world}-${pad2(sub)}`);
-    txt(sizePill,  `Size: ${s}×${s}`);
-    txt(trapPill,  `罠: ${trapsOf(s, sub)}`);
-    intro.classList.remove('hidden');
-  }
-
-  // 初期表示
-  showIntro();
-})();
-</script>
-</body>
-</html>
+    txt(badg
