@@ -3,11 +3,61 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<meta http-equiv="Content-Security-Policy" content="base-uri 'none'; object-src 'none'; script-src 'self' 'unsafe-inline'">
+
+<!-- ====== SEO 基本 ====== -->
+<title>🥷忍者潜入🏯 — sennyu (light)</title>
+<meta name="description" content="左端から順番に本丸🏯へ潜入！マインスイーパー系ヒント（数字）×一本道攻略。スマホでサクッと遊べる忍者パズル。">
+<link rel="canonical" href="https://kkpwebninja.com/sennyu" />
+<meta name="robots" content="index,follow" />
+<meta name="theme-color" content="#f5f9ff" />
+
+<!-- OGP / Twitter -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="忍者潜入 — sennyu">
+<meta property="og:title" content="忍者潜入🏯｜左端から順番に攻略する忍者パズル">
+<meta property="og:description" content="左端から順番に本丸🏯へ潜入！マインスイーパー系ヒント（数字）×一本道攻略。スマホでサクッと遊べる忍者パズル。">
+<meta property="og:url" content="https://kkpwebninja.com/sennyu">
+<meta property="og:image" content="https://kkpwebninja.com/ogp/sennyu-og.png"> <!-- 1200x630 推奨 -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@kkp_webninja">
+
+<!-- 構造化データ（JSON-LD） -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "忍者潜入 — sennyu",
+  "url": "https://kkpwebninja.com/sennyu",
+  "description": "左端から順番に本丸へ潜入するシンプル忍者パズル。数字は周囲8方向の罠の数を示すヒント。",
+  "applicationCategory": "Game",
+  "operatingSystem": "Web",
+  "creator": { "@type": "Organization", "name": "kkpwebninja" },
+  "inLanguage": "ja",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "sameAs": ["https://x.com/kkp_webninja","https://kkpwebninja.com"]
+}
+</script>
+
+<!-- ====== CSP（Plausible を許可） ====== -->
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self';
+           base-uri 'none';
+           object-src 'none';
+           frame-ancestors 'self';
+           img-src 'self' data:;
+           style-src 'self' 'unsafe-inline';
+           script-src 'self' 'unsafe-inline' https://plausible.io;
+           connect-src 'self' https://plausible.io">
+
+<!-- Analytics（Plausible） -->
+<link rel="preconnect" href="https://plausible.io" />
+<script defer data-domain="kkpwebninja.com" src="https://plausible.io/js/script.js"></script>
+
+<!-- キャッシュ抑止（開発中） -->
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>🥷忍者潜入🏯 — sennyu (light)</title>
+
 <style>
   :root{
     --bg:#f5f9ff; --text:#17324d; --cell:50px; --gap:7px;
@@ -20,13 +70,13 @@
     /* 中央表示の微調整（中央より少し上） */
     --center-nudge-y: -6vh;
 
-    /* ==== 透明度アップしたガラス設定 ==== */
-    --overlay-dim1: rgba(0,0,0,.08);  /* 暗幕さらに薄く */
+    /* 透明度アップしたガラス設定 */
+    --overlay-dim1: rgba(0,0,0,.08);
     --overlay-dim2: rgba(0,0,0,.14);
-    --panel-bg: rgba(255,255,255,.50);/* パネルの透明度：読みづらければ .55～.60 に */
-    --panel-border: #cfe0ff99;        /* 枠も薄めに */
+    --panel-bg: rgba(255,255,255,.50);
+    --panel-border: #cfe0ff99;
     --panel-shadow: 0 10px 26px rgba(64,103,163,.18);
-    --glass-blur: 14px;               /* ぼかし強めで可読性確保 */
+    --glass-blur: 14px;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -92,19 +142,12 @@
   .btn{background:linear-gradient(180deg,#ffffff,#f1f7ff); border:2px solid #cfe0ff; color:#17324d; border-radius:14px; font-weight:900; cursor:pointer; padding:12px 18px; box-shadow:0 6px 14px rgba(64,103,163,.12)}
   .btn:hover{filter:brightness(1.03)}
 
-  /* ===== オーバーレイ（ガラス & 位置） ===== */
-  .overlay{
-    position:fixed; inset:0; display:flex; z-index:10;
-    background:radial-gradient(ellipse at center, var(--overlay-dim1), var(--overlay-dim2));
-  }
+  /* オーバーレイ（ガラス&位置） */
+  .overlay{ position:fixed; inset:0; display:flex; z-index:10;
+    background:radial-gradient(ellipse at center, var(--overlay-dim1), var(--overlay-dim2)); }
   .overlay .panel{
-    background:var(--panel-bg);
-    border:2px solid var(--panel-border);
-    border-radius:18px;
-    padding:18px;
-    text-align:center;
-    width:min(520px,92vw);
-    box-shadow:var(--panel-shadow);
+    background:var(--panel-bg); border:2px solid var(--panel-border); border-radius:18px;
+    padding:18px; text-align:center; width:min(520px,92vw); box-shadow:var(--panel-shadow);
     backdrop-filter: blur(var(--glass-blur)) saturate(1.08) brightness(1.02);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.08) brightness(1.02);
   }
@@ -122,7 +165,6 @@
   .pos-top-right{ align-items:flex-start; justify-content:flex-end; padding:7vh 4vw 0 0; }
   .pos-bottom-left{ align-items:flex-end; justify-content:flex-start; padding:0 0 7vh 4vw; }
   .pos-bottom-right{ align-items:flex-end; justify-content:flex-end; padding:0 4vw 7vh 0; }
-  /* 中央を少し上へ（画面に応じて微調整） */
   .pos-center .panel{ transform: translateY(var(--center-nudge-y)); }
   @media (min-width: 480px){ :root{ --center-nudge-y: -5vh; } }
   @media (min-width: 768px){ :root{ --center-nudge-y: -4vh; } }
@@ -136,6 +178,11 @@
   footer{width:100%;max-width:980px;color:#305077b3;padding:16px 16px 28px}
   footer .links{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
   footer a{color:#0d7bdc; text-decoration:underline; font-weight:800}
+
+  /* ガラス未対応のフォールバック */
+  @supports not ((-webkit-backdrop-filter: none) or (backdrop-filter: none)) {
+    .overlay .panel{ background: rgba(255,255,255,.72); box-shadow: 0 10px 26px rgba(64,103,163,.22); }
+  }
 </style>
 </head>
 <body>
@@ -193,10 +240,18 @@
 
 <script>
 (function(){ 'use strict';
-  const VERSION='sennyu-single-2025-08-14-light-Lguard2g-centerGlassMore';
+  const VERSION='sennyu-single-2025-08-14-light-Lguard2g-centerGlassMore+ogp-analytics';
   const UI_POS = { intro: 'center', result: 'center' }; // 中央付近で表示
   const $=(id)=>document.getElementById(id);
   const txt=(el,t)=>{ if(el) el.textContent=t; };
+
+  // ---- Analytics helper ----
+  function track(ev, params={}){
+    try{
+      if (typeof window.plausible === 'function') window.plausible(ev, { props: params });
+      if (typeof window.gtag === 'function') window.gtag('event', ev, params);
+    }catch(e){}
+  }
 
   // 画面幅でマスサイズ（横スクロール優先）
   function setCellSize(){
@@ -209,7 +264,7 @@
   const boardEl=$('board'), wrapEl=$('boardWrap'), msgEl=$('message');
   const stagePill=$('stagePill'), sizePill=$('sizePill'), trapPill=$('trapPill');
   const intro=$('intro'), startBtn=$('start'), badge=$('badge');
-  const ov=$('ov'), ovTitle=$('ovTitle'), ovDesc=$('ovDesc'), nextBtn=$('next'), againBtn=$('again');
+  const ov=$('ov'), ovTitle=$('ovTitle'), ovDesc=$('ovDesc');
   const retryBtn=$('retry'), restartSameBtn=$('restartSame');
   txt($('verPill'), VERSION);
 
@@ -226,18 +281,18 @@
     setOverlayPos(ov, UI_POS.result);
   }
 
-  // ステージ構成：Worldごとに盤サイズ固定、Subで罠数が+1
+  // ステージ構成
   const MAX_WORLD=5, SUBS=5;
   let world=1, sub=1;
   let SIZE=5, TRAPS=6, board=[], revealed=[], castle={x:4,y:2}, ninja=null;
-  let initialBoard=null; // 「最初から」用に同一レイアウト保存
+  let initialBoard=null;
 
   const sizeOfWorld=(w)=>({1:5,2:6,3:7,4:8,5:9}[w]||9);
   function trapsOf(size, sub){
-    const baseBySize={5:5,6:8,7:11,8:15,9:19};        // やや易しめ
+    const baseBySize={5:5,6:8,7:11,8:15,9:19};
     const base=baseBySize[size] ?? Math.floor(size*size*0.20);
     const start=Math.max(1, base), cap=Math.floor(size*size*0.30);
-    return Math.min(cap, start+(sub-1));              // サブごとに +1
+    return Math.min(cap, start+(sub-1));
   }
 
   function showIntro(){
@@ -254,6 +309,7 @@
     if(intro.classList.contains('hidden')) return;
     intro.classList.add('hidden');
     startStage();
+    track('start', { world, sub, size: SIZE, traps: TRAPS });
   }
   // ボタン以外では開始しない
   startBtn.addEventListener('click', startNow);
@@ -264,7 +320,8 @@
   function startStage(attempt=0){
     SIZE=sizeOfWorld(world);
     TRAPS=trapsOf(SIZE, sub);
-    castle={x:SIZE-1,y:Math.floor(SIZE/2)};
+    const cy=Math.floor(SIZE/2);
+    castle={x:SIZE-1,y:cy};
     txt(stagePill, `World ${world}-${String(sub).padStart(2,'0')}`);
     txt(sizePill,  `Size: ${SIZE}×${SIZE}`);
     txt(trapPill,  `罠: ${TRAPS}`);
@@ -275,7 +332,7 @@
 
     const path=buildPath(SIZE, castle.y); path.add(`${castle.x},${castle.y}`);
 
-    // ランダム罠配置（左端/🏯/通路は除外）
+    // ランダム罠（左端/🏯/通路は除外）
     let placed=0, tries=0, maxTries=SIZE*SIZE*20;
     while(placed<TRAPS && tries++<maxTries){
       const x=Math.floor(Math.random()*SIZE), y=Math.floor(Math.random()*SIZE);
@@ -286,7 +343,7 @@
       board[y][x]='T'; placed++;
     }
 
-    // 直線侵入対策（左隣・近傍を詰める／左側に必ず罠）
+    // 直線侵入対策
     blockCastleLeft(path);
     enforceCastlePressure(path);
     ensureTrapLeftOfCastle();
@@ -313,7 +370,6 @@
     const s=new Set();
     for(let x=0;x<=size-1;x++){
       s.add(`${x},${y}`);
-      // 城の左隣が通路直通にならないよう上下にずらす
       if(x===size-2 && y===cy){ if(y+1<size) y++; else y--; s.add(`${x},${y}`); }
       if(x<size-1){
         if(y<cy && Math.random()<0.5){ y++; s.add(`${x},${y}`); }
@@ -335,7 +391,6 @@
     return c;
   }
 
-  // 城の左隣をできるだけ罠に（通路ならスキップ）
   function blockCastleLeft(path){
     const lcx=castle.x-1, lcy=castle.y;
     if(lcx<0) return;
@@ -354,7 +409,6 @@
     board[d.y][d.x]=0; board[lcy][lcx]='T';
   }
 
-  // 城前に最低1個の近接罠（斜め含む）を確保
   function enforceCastlePressure(path){
     const lcx=castle.x-1, lcy=castle.y;
     if(lcx<0) return;
@@ -393,7 +447,6 @@
     board[d.y][d.x]=0; board[t.ny][t.nx]='T';
   }
 
-  // ★最終保証：同じ行の「左側どこか」に必ず罠（左隣を強制罠）
   function ensureTrapLeftOfCastle(){
     const y=castle.y, lcx=castle.x-1;
     if(lcx<=0) return; // 左端x=0には置かない
@@ -401,7 +454,7 @@
     board[y][lcx]='T';
   }
 
-  // 左端どこかから🏯までの到達性チェック（上下左右のみ）
+  // 左端から🏯までの到達性（上下左右のみ）
   function isReachable(){
     const tx=castle.x, ty=castle.y;
     const seen=Array.from({length:SIZE},()=>Array(SIZE).fill(false));
@@ -421,7 +474,7 @@
     return false;
   }
 
-  // 左→右へ「左・上・下」からのみ開けられる（斜めNG／自動連鎖なし）
+  // 左→右へ「左・上・下」からのみ（斜めNG／自動連鎖なし）
   const canOpen=(x,y)=>{
     if(revealed[y][x]) return false;
     if(x===0) return true;
@@ -432,30 +485,32 @@
   };
 
   function draw(){
-    boardEl.style.gridTemplateColumns=`repeat(${SIZE}, var(--cell))`;
-    boardEl.innerHTML=''; boardEl.classList.remove('boardShine');
+    const SIZEpx = `repeat(${SIZE}, var(--cell))`;
+    const el = boardEl;
+    el.style.gridTemplateColumns = SIZEpx;
+    el.innerHTML=''; el.classList.remove('boardShine');
     for(let y=0;y<SIZE;y++){
       for(let x=0;x<SIZE;x++){
-        const el=document.createElement('button');
-        el.type='button'; el.className='cell'; el.setAttribute('aria-label',`行${y+1} 列${x+1}`);
-        if(x===0) el.classList.add('start');
-        if(x===SIZE-1 && y===Math.floor(SIZE/2)) el.classList.add('castle');
+        const c=document.createElement('button');
+        c.type='button'; c.className='cell'; c.setAttribute('aria-label',`行${y+1} 列${x+1}`);
+        if(x===0) c.classList.add('start');
+        if(x===SIZE-1 && y===Math.floor(SIZE/2)) c.classList.add('castle');
 
         const allow=canOpen(x,y);
-        if(!revealed[y][x]) el.classList.add(allow?'frontier':'locked');
+        if(!revealed[y][x]) c.classList.add(allow?'frontier':'locked');
         else{
-          el.classList.add('open');
-          if(board[y][x]==='T'){ el.classList.add('trap'); el.textContent='💥'; }
+          c.classList.add('open');
+          if(board[y][x]==='T'){ c.classList.add('trap'); c.textContent='💥'; }
           else{
             const n=board[y][x];
-            if(n===0) el.classList.add('safe0'); else { el.textContent=n; el.classList.add('n'+n); }
+            if(n===0) c.classList.add('safe0'); else { c.textContent=n; c.classList.add('n'+n); }
           }
         }
-        if(ninja && ninja.x===x && ninja.y===y) el.classList.add('ninja');
+        if(ninja && ninja.x===x && ninja.y===y) c.classList.add('ninja');
 
-        el.addEventListener('click', ()=>onOpen(x,y));
-        el.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); onOpen(x,y); } });
-        boardEl.appendChild(el);
+        c.addEventListener('click', ()=>onOpen(x,y));
+        c.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); onOpen(x,y); } });
+        el.appendChild(c);
       }
     }
   }
@@ -468,12 +523,12 @@
     if(board[y][x]==='T'){
       txt(msgEl,'💥 任務失敗…');
       wrapEl.classList.add('shake'); setTimeout(()=>wrapEl.classList.remove('shake'),600);
-      revealAll(); draw(); showLose(); return;
+      revealAll(); draw(); showLose(); track('fail', { world, sub, size: SIZE }); return;
     }
     draw();
     if(x===SIZE-1 && y===Math.floor(SIZE/2)){
       txt(msgEl,'🎉 潜入成功！'); boardEl.classList.add('boardShine'); confettiFX();
-      revealAll(); draw(); showWin();
+      revealAll(); draw(); showWin(); track('clear', { world, sub, size: SIZE });
     }
   }
 
@@ -518,21 +573,23 @@
     board = initialBoard.map(row=>row.slice());
     revealed = Array.from({length:SIZE},()=>Array(SIZE).fill(false));
     ninja=null; txt(msgEl,''); draw();
+    track('restart_same', { world, sub });
   }
-  restartSameBtn.addEventListener('click', resetToInitial);       // ↩ 最初から（同レイアウト）
-  retryBtn.addEventListener('click', ()=>{ hideOv(); startStage(); }); // 🎲 作り直す（新レイアウト）
+  $('restartSame').addEventListener('click', resetToInitial);
+  $('retry').addEventListener('click', ()=>{ hideOv(); startStage(); track('remake', { world, sub }); });
 
   // オーバーレイ側のボタン
   $('again').addEventListener('click', ()=>{
     const isFinal=(world===MAX_WORLD && sub===SUBS);
     hideOv();
     if(isFinal){ world=1; sub=1; }
-    startStage(); // 新レイアウトで即再挑戦
+    startStage(); track('retry_overlay', { world, sub });
   });
   $('next').addEventListener('click', ()=>{
     hideOv();
     if(sub<SUBS){ sub++; } else { sub=1; world=Math.min(MAX_WORLD, world+1); }
     showIntro();
+    track('next_stage', { world, sub });
   });
 
   // 初期適用 & 表示
