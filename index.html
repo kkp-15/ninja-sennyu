@@ -3,15 +3,17 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<!-- キャッシュ無効化（古いJSを掴まないように） -->
+<!-- 可能ならインラインJS許可（サーバ側CSPがあればそちらが優先されます） -->
+<meta http-equiv="Content-Security-Policy" content="base-uri 'none'; object-src 'none'; script-src 'self' 'unsafe-inline'">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>忍者潜入🏯 — 安定起動版</title>
+<title>忍者潜入🏯 — sennyu (single-file)</title>
 <style>
   :root{
     --bg:#070c18; --text:#eef3ff;
-    --cell:44px; --gap:7px;
+    --cell:50px; /* JSで画面幅に応じて更新（盤サイズでは縮めない＝横スクロール） */
+    --gap:7px;
     --covered1:#1a2b52; --covered2:#132447; --covered-border:#3a5a94;
     --open1:#0f1b37; --open2:#0a1430; --open-border:#2c497b;
     --frontier:#46e1ff; --frontier-glow:#46e1ff55;
@@ -24,9 +26,11 @@
   body{
     margin:0; color:var(--text);
     font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
-    background:var(--bg);
+    background: var(--bg);
     display:flex; flex-direction:column; align-items:center;
   }
+
+  /* 背景 */
   .bg{position:fixed; inset:-10vmax; z-index:-2; pointer-events:none;
     background:
       radial-gradient(1200px 800px at 10% -10%, #10306666, transparent 60%),
@@ -41,10 +45,12 @@
     animation:gridMove 22s linear infinite;
   }
   @keyframes gridMove{from{transform:translateY(0)} to{transform:translateY(36px)}}
+
   .wrap{width:100%;max-width:980px;padding:14px 16px}
   header h1{margin:.2em 0 .1em}
   .sub{opacity:.85;margin:.2rem 0 .6rem}
 
+  /* 盤：左端合わせ＋横スクロール */
   #boardWrap{
     width:100%; overflow:auto; -webkit-overflow-scrolling:touch;
     border-radius:16px; margin:.5rem 0;
@@ -53,7 +59,7 @@
   }
   #board{
     display:grid; gap:var(--gap);
-    grid-template-columns:repeat(8,var(--cell)); /* JSで更新 */
+    grid-template-columns:repeat(5,var(--cell)); /* JSで更新 */
     width:max-content; padding:14px;
     background:#0b1734; border:2px solid #233a64; border-radius:16px;
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 16px 40px rgba(0,0,0,.55);
@@ -68,11 +74,9 @@
     transition:transform .06s ease, filter .12s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
   }
   .cell:hover{filter:brightness(1.07)} .cell:active{transform:translateY(1px)}
-  .cell.open{ background:linear-gradient(180deg,var(--open1),var(--open2)); border-color:var(--open-border); cursor:default; box-shadow:inset 0 3px 10px rgba(0,0,0,.45) }
-  .cell.locked{
-    cursor:not-allowed; opacity:.50;
-    background:repeating-linear-gradient(135deg,var(--locked-stripe) 0 8px,transparent 8px 16px),linear-gradient(180deg,var(--covered1),var(--covered2));
-  }
+  .cell.open{ background:linear-gradient(180deg,var(--open1),var(--open2)); border-color:var(--open-border); cursor:default; box-shadow:inset 0 3px 10px rgba(0,0,0,.45)}
+  .cell.locked{ cursor:not-allowed; opacity:.50;
+    background:repeating-linear-gradient(135deg,var(--locked-stripe) 0 8px,transparent 8px 16px),linear-gradient(180deg,var(--covered1),var(--covered2));}
   .cell.frontier{
     box-shadow:0 0 0 3px var(--frontier) inset, 0 0 16px 2px var(--frontier-glow);
     border-color:#4bd3ff; filter:brightness(1.06);
@@ -85,16 +89,21 @@
   .safe0{ color:#c6d6f5; opacity:.95 }
   .n1{color:#76b7ff}.n2{color:#55d68c}.n3{color:#ffc14d}.n4{color:#c5a3ff}
   .n5{color:#ff9a6b}.n6{color:#8fe3ff}.n7{color:#ff7d92}.n8{color:#ffffff}
-  .cell.ninja::before{content:"🥷"; position:absolute; right:2px; bottom:2px; font-size:calc(var(--cell)*0.36)}
+
+  /* 忍者：数字を隠さない右下バッジ */
+  .cell.ninja::before{
+    content:"🥷"; position:absolute; right:2px; bottom:2px;
+    font-size:calc(var(--cell)*0.36); line-height:1; pointer-events:none; opacity:.95;
+  }
 
   .hud{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center; background:#0f1b37;border:1px solid #2a4272;border-radius:12px;padding:8px 10px;margin-bottom:.5rem}
   .pill{padding:.35em .7em;border-radius:999px;border:1px solid #37568f;background:#0f1b37;font-weight:800}
   #message{min-height:1.8em;text-align:center;font-weight:900}
-  #message.win{color:var(--ok)} #message.lose{color:var(--ng)}
   .bar{display:flex;gap:12px;justify-content:center;margin:.35rem 0}
   .btn{ background:#16264a;border:2px solid #2a4272;color:#eaf1ff;border-radius:14px;font-weight:900;cursor:pointer;padding:12px 18px }
   .btn:hover{filter:brightness(1.08)}
 
+  /* オーバーレイ */
   .overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center, rgba(0,0,0,.35), rgba(0,0,0,.7)); z-index:10 }
   .overlay .panel{ background:#0f1b37; border:2px solid #2a4272; border-radius:18px; padding:18px; text-align:center; width:min(520px,92vw) }
   .overlay .panel .btn{ font-size:1rem; padding:10px 16px } /* スタート小さめ */
@@ -134,14 +143,14 @@
     <p id="message" aria-live="polite"></p>
   </main>
 
-  <!-- スタート（フォールバックのため onclick も付与） -->
+  <!-- スタート（念のためフォールバックの onclick も追加） -->
   <div id="intro" class="overlay" aria-modal="true" role="dialog">
     <div class="panel">
       <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-bottom:10px">
         <span style="opacity:.8">ステージ</span>
         <span id="badge" class="stage-badge">1-01</span>
       </div>
-      <button id="start" class="btn" type="button" onclick="window.sennyuStart && window.sennyuStart(event)">▶ スタート</button>
+      <button id="start" class="btn" type="button" onclick="window.__sennyuStart&&__sennyuStart(event)">▶ スタート</button>
     </div>
   </div>
 
@@ -150,7 +159,7 @@
     <div class="panel">
       <h2 id="ovTitle">🎉 潜入成功！</h2>
       <p id="ovDesc">本丸に到達！</p>
-      <div id="ovBtns" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <button id="next" class="btn" type="button">⤴ 次のステージへ</button>
         <button id="again" class="btn" type="button">🔁 同じステージ</button>
       </div>
@@ -166,76 +175,71 @@
   </footer>
 
 <script>
-/* ====== ここから即時初期化（DOMContentLoaded 不使用） ====== */
+/* ====== 即時初期化（DOMContentLoadedに依存しない） ====== */
 (function(){ 'use strict';
-  const VERSION = 'sennyu-2025-08-14-01';
-  const $ = (id)=>document.getElementById(id);
-  const txt = (el,t)=>{ if(el) el.textContent=t; };
+  const VERSION='sennyu-single-2025-08-14';
+  const $=(id)=>document.getElementById(id);
+  const txt=(el,t)=>{ if(el) el.textContent=t; };
 
-  // バージョン表示
-  txt($('verPill'), VERSION);
-
-  // 旧データを念のため掃除（あってもなくてもOK）
-  try{
-    ['sennyu_world','sennyu_sub'].forEach(k=>localStorage.removeItem(k));
-    sessionStorage.removeItem('sennyu_tmp');
-  }catch(_){}
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
+  // 画面幅に応じてマスサイズ（盤サイズでは縮めない＝横スクロール方針）
+  function setCellSize(){
+    const vw = Math.min(window.innerWidth, (document.getElementById('boardWrap')?.clientWidth||window.innerWidth));
+    let px = 44; if (vw>=420) px=48; if (vw>=560) px=52; if (vw>=768) px=56; if (vw>=1024) px=60;
+    document.documentElement.style.setProperty('--cell', px+'px');
   }
+  window.addEventListener('resize', setCellSize);
+  setCellSize();
 
-  // ==== DOM 参照（存在しなければ即警告） ====
-  const boardEl = $('board'), wrapEl=$('boardWrap'), msgEl=$('message');
+  // SW/一時キー掃除（あってもなくてもOK）
+  try{
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
+    }
+  }catch(_){}
+
+  const boardEl=$('board'), wrapEl=$('boardWrap'), msgEl=$('message');
   const stagePill=$('stagePill'), sizePill=$('sizePill'), trapPill=$('trapPill');
   const intro=$('intro'), startBtn=$('start'), badge=$('badge');
   const ov=$('ov'), ovTitle=$('ovTitle'), ovDesc=$('ovDesc'), nextBtn=$('next'), againBtn=$('again'), retryBtn=$('retry');
-  if(!boardEl||!wrapEl||!msgEl||!stagePill||!sizePill||!trapPill||!intro||!startBtn||!badge||!ov||!ovTitle||!ovDesc||!nextBtn||!againBtn||!retryBtn){
-    alert('初期化失敗：要素が見つかりません'); return;
-  }
+  txt($('verPill'), VERSION);
 
-  // ===== 設定：サイズ固定／罠で難易度調整 =====
-  const MAX_WORLD=5, SUBS=5;
+  const MAX_WORLD=5, SUBS=5;  // 5×(1..5)
   let world=1, sub=1;
-  let SIZE=5, TRAPS=6, board=[], revealed=[], ninja=null, castle={x:4,y:2};
+  let SIZE=5, TRAPS=6, board=[], revealed=[], castle={x:4,y:2}, ninja=null;
 
-  const sizeOfWorld = (w)=>({1:5,2:6,3:7,4:8,5:9}[w]||9);
+  const sizeOfWorld=(w)=>({1:5,2:6,3:7,4:8,5:9}[w]||9);
   function trapsOf(size, sub){
     const baseBySize={5:6,6:9,7:12,8:16,9:20};
     const base=baseBySize[size] ?? Math.floor(size*size*0.22);
-    const start=Math.max(1, base-1);
-    const cap=Math.floor(size*size*0.30);
-    return Math.min(cap, start+(sub-1));
+    const start=Math.max(1, base-1);            // 1面目は少し軽め
+    const cap=Math.floor(size*size*0.30);       // 上限 30%
+    return Math.min(cap, start+(sub-1));        // サブ毎に +1
   }
 
-  const clamp=(a,b,v)=>Math.max(a, Math.min(b, v));
-  function setCellSize(size){
-    const wrapW = wrapEl.clientWidth || window.innerWidth;
-    const gap = 7*(size-1);
-    const usable = Math.max(160, wrapW - 28 - gap - 8);
-    const px = clamp(32,64, Math.floor(usable/size));
-    document.documentElement.style.setProperty('--cell', px+'px');
+  function showIntro(){
+    const s=sizeOfWorld(world);
+    txt(badge, `${world}-${String(sub).padStart(2,'0')}`);
+    txt(stagePill, `World ${world}-${String(sub).padStart(2,'0')}`);
+    txt(sizePill,  `Size: ${s}×${s}`);
+    txt(trapPill,  `罠: ${trapsOf(s, sub)}`);
+    intro.classList.remove('hidden');
   }
-  window.addEventListener('resize', ()=> setCellSize(SIZE));
 
-  // ====== スタート動作（グローバルフォールバックも用意） ======
   function startNow(e){
-    if(e){ e.preventDefault && e.preventDefault(); e.stopPropagation && e.stopPropagation(); }
+    if(e){ e.preventDefault?.(); e.stopPropagation?.(); }
     if(intro.classList.contains('hidden')) return;
     intro.classList.add('hidden');
     startStage();
   }
-  // イベント登録 + フォールバック
   startBtn.addEventListener('click', startNow);
   startBtn.addEventListener('pointerup', startNow);
   intro.addEventListener('click', (e)=>{ if(!e.target.closest('#start')) startNow(e); });
-  window.sennyuStart = startNow; // ← ボタンの onclick からも呼べる
+  window.__sennyuStart=startNow; // フォールバック用
 
-  // ====== 盤生成 ======
   function startStage(attempt=0){
     SIZE=sizeOfWorld(world);
     TRAPS=trapsOf(SIZE, sub);
     castle={x:SIZE-1,y:Math.floor(SIZE/2)};
-    setCellSize(SIZE);
     txt(stagePill, `World ${world}-${String(sub).padStart(2,'0')}`);
     txt(sizePill,  `Size: ${SIZE}×${SIZE}`);
     txt(trapPill,  `罠: ${TRAPS}`);
@@ -247,6 +251,7 @@
     const path=buildPath(SIZE, castle.y); // 最後は上下から入城
     path.add(`${castle.x},${castle.y}`);
 
+    // 罠をランダム配置（通路/左端/🏯除外）
     let placed=0, tries=0, maxTries=SIZE*SIZE*20;
     while(placed<TRAPS && tries++<maxTries){
       const x=Math.floor(Math.random()*SIZE), y=Math.floor(Math.random()*SIZE);
@@ -257,26 +262,30 @@
       board[y][x]='T'; placed++;
     }
 
-    blockCastleLeft(path);       // 左直線ブロック
-    enforceCastlePressure(path); // 城前圧
+    // 左直線封じ & 城前の圧
+    blockCastleLeft(path);
+    enforceCastlePressure(path);
 
+    // 到達性チェック（希に配置が悪い場合は作り直す）
     if(!isReachable()){
       if(attempt<50) return startStage(attempt+1);
-      console.warn('到達性の確保に失敗（50回超）');
+      console.warn('到達性保証に失敗（50回超）');
     }
 
+    // 数字計算
     for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++){
       if(board[y][x]!=='T') board[y][x]=count8(x,y);
     }
     draw();
   }
 
+  /* ===== ロジック ===== */
   function buildPath(size, cy){
     let y=Math.floor(Math.random()*size);
     const s=new Set();
     for(let x=0;x<=size-1;x++){
       s.add(`${x},${y}`);
-      if(x===size-2 && y===cy){
+      if(x===size-2 && y===cy){ // 城の真左に来たら上下にずらす
         if(y+1<size) y++; else y--;
         s.add(`${x},${y}`);
       }
@@ -305,13 +314,12 @@
     const lcx=castle.x-1, lcy=castle.y;
     if(lcx<0) return;
     if(board[lcy][lcx]==='T') return;
-    if(path.has(`${lcx},${lcy}`)) return;
+    if(path.has(`${lcx},${lcy}`)) return; // 通路なら置かない
     const donors=[];
     for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++){
       if(board[y][x]!=='T') continue;
       if(x===0) continue;
       if(x===castle.x && y===castle.y) continue;
-      if(x===lcx && y===lcy) continue;
       if(path.has(`${x},${y}`)) continue;
       donors.push({x,y});
     }
@@ -333,6 +341,7 @@
       return false;
     };
     if(hasNear()) return;
+
     const candidates=[];
     for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
       if(!dx&&!dy) continue;
@@ -341,9 +350,11 @@
       if(nx===castle.x && ny===castle.y) continue;
       if(nx===0) continue;
       if(path.has(`${nx},${ny}`)) continue;
-      if(board[ny][nx]!=='T') candidates.push({nx,ny}); else return;
+      if(board[ny][nx]!=='T') candidates.push({nx,ny});
+      else return;
     }
     if(!candidates.length) return;
+
     const donors=[];
     for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++){
       if(board[y][x]==='T' && x!==0 && !(x===castle.x && y===castle.y) && !path.has(`${x},${y}`)){
@@ -388,7 +399,6 @@
   function draw(){
     boardEl.style.gridTemplateColumns=`repeat(${SIZE}, var(--cell))`;
     boardEl.innerHTML=''; boardEl.classList.remove('boardShine');
-    let ninja={x:-1,y:-1}; // 表示位置（最新の開封位置を右下バッジに）
     for(let y=0;y<SIZE;y++){
       for(let x=0;x<SIZE;x++){
         const el=document.createElement('button');
@@ -405,7 +415,7 @@
             const n=board[y][x]; if(n===0) el.classList.add('safe0'); else { el.textContent=n; el.classList.add('n'+n); }
           }
         }
-        if(window.__ninja && window.__ninja.x===x && window.__ninja.y===y) el.classList.add('ninja');
+        if(ninja && ninja.x===x && ninja.y===y) el.classList.add('ninja');
 
         el.addEventListener('click', ()=>onOpen(x,y));
         el.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); onOpen(x,y); } });
@@ -417,7 +427,7 @@
   function onOpen(x,y){
     if(!canOpen(x,y)){ txt(msgEl,'左端→到達済みの上下左右だけ開けられます。'); return; }
     if(revealed[y][x]) return;
-    revealed[y][x]=true; window.__ninja={x,y};
+    revealed[y][x]=true; ninja={x,y};
 
     if(board[y][x]==='T'){
       txt(msgEl,'💥 罠にかかった！');
@@ -473,24 +483,14 @@
   againBtn.addEventListener('click', ()=>{
     const isFinal=(world===MAX_WORLD && sub===SUBS);
     hideOv();
-    if(isFinal){ world=1; sub=1; } // 完全制覇→最初へ
+    if(isFinal){ world=1; sub=1; }
     showIntro(true);
   });
   retryBtn.addEventListener('click', ()=>{ hideOv(); showIntro(true); });
 
-  function showIntro(same=false){
-    const s=sizeOfWorld(world);
-    txt(badge, `${world}-${String(sub).padStart(2,'0')}`);
-    txt(stagePill, `World ${world}-${String(sub).padStart(2,'0')}`);
-    txt(sizePill,  `Size: ${s}×${s}`);
-    txt(trapPill,  `罠: ${trapsOf(s, sub)}`);
-    intro.classList.remove('hidden');
-  }
-
   // 初期表示
   showIntro();
-
-})(); // ここで即実行
+})();
 </script>
 </body>
 </html>
