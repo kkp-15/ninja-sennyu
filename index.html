@@ -81,11 +81,23 @@
   .btn{background:linear-gradient(180deg,#ffffff,#f1f7ff); border:2px solid #cfe0ff; color:#17324d; border-radius:14px; font-weight:900; cursor:pointer; padding:12px 18px; box-shadow:0 6px 14px rgba(64,103,163,.12)}
   .btn:hover{filter:brightness(1.03)}
 
-  .overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center, rgba(0,0,0,.25), rgba(0,0,0,.45)); z-index:10 }
+  /* ===== オーバーレイ（位置をクラスで変更可能） ===== */
+  .overlay{ position:fixed; inset:0; display:flex; z-index:10; background:radial-gradient(ellipse at center, rgba(0,0,0,.25), rgba(0,0,0,.45)); }
   .overlay .panel{ background:#ffffff; border:2px solid #cfe0ff; border-radius:18px; padding:18px; text-align:center; width:min(520px,92vw); box-shadow:0 14px 36px rgba(64,103,163,.18) }
   .overlay .panel .btn{ font-size:1rem; padding:10px 16px }
   .stage-badge{ width:var(--cell); height:var(--cell); display:inline-flex; align-items:center; justify-content:center; border-radius:12px; background:#eef6ff; border:2px solid #cfe0ff; font-weight:900; font-size:calc(var(--cell)*0.34); color:#17324d }
   .hidden{ display:none }
+
+  /* 位置バリエーション */
+  .pos-center{ align-items:center; justify-content:center; }
+  .pos-top{ align-items:flex-start; justify-content:center; padding-top:7vh; }
+  .pos-bottom{ align-items:flex-end; justify-content:center; padding-bottom:7vh; }
+  .pos-left{ align-items:center; justify-content:flex-start; padding-left:4vw; }
+  .pos-right{ align-items:center; justify-content:flex-end; padding-right:4vw; }
+  .pos-top-left{ align-items:flex-start; justify-content:flex-start; padding:7vh 0 0 4vw; }
+  .pos-top-right{ align-items:flex-start; justify-content:flex-end; padding:7vh 4vw 0 0; }
+  .pos-bottom-left{ align-items:flex-end; justify-content:flex-start; padding:0 0 7vh 4vw; }
+  .pos-bottom-right{ align-items:flex-end; justify-content:flex-end; padding:0 4vw 7vh 0; }
 
   .shake{ animation:shake .5s ease both } @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
   .boardShine{ position:relative } .boardShine::after{ content:""; position:absolute; inset:0; border-radius:14px; background:linear-gradient(120deg,transparent 0%, rgba(255,255,255,.55) 45%, transparent 55%); transform:translateX(-120%); animation:shine 1.1s ease-out forwards }
@@ -119,8 +131,8 @@
     <p id="message" aria-live="polite"></p>
   </main>
 
-  <!-- スタート -->
-  <div id="intro" class="overlay" aria-modal="true" role="dialog">
+  <!-- スタート（位置は JS で付く .pos-* で制御） -->
+  <div id="intro" class="overlay hidden" aria-modal="true" role="dialog">
     <div class="panel">
       <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-bottom:10px">
         <span style="opacity:.8">ステージ</span>
@@ -152,7 +164,8 @@
 
 <script>
 (function(){ 'use strict';
-  const VERSION='sennyu-single-2025-08-14-light-Lguard2d';
+  const VERSION='sennyu-single-2025-08-14-light-Lguard2e-pos';
+  const UI_POS = { intro: 'top', result: 'bottom' }; // ← ここを変えるだけで位置変更
   const $=(id)=>document.getElementById(id);
   const txt=(el,t)=>{ if(el) el.textContent=t; };
 
@@ -170,10 +183,24 @@
   const retryBtn=$('retry'), restartSameBtn=$('restartSame');
   txt($('verPill'), VERSION);
 
+  // 位置適用ヘルパ
+  function setOverlayPos(el,pos){
+    const all=['pos-center','pos-top','pos-bottom','pos-left','pos-right','pos-top-left','pos-top-right','pos-bottom-left','pos-bottom-right'];
+    el.classList.remove(...all);
+    const ok=new Set(['center','top','bottom','left','right','top-left','top-right','bottom-left','bottom-right']);
+    const v = ok.has(pos)?pos:'center';
+    el.classList.add('pos-'+v);
+  }
+  function applyPositions(){
+    setOverlayPos(intro, UI_POS.intro);
+    setOverlayPos(ov, UI_POS.result);
+  }
+
+  // ステージ構成
   const MAX_WORLD=5, SUBS=5;
   let world=1, sub=1;
   let SIZE=5, TRAPS=6, board=[], revealed=[], castle={x:4,y:2}, ninja=null;
-  let initialBoard=null; // ← 最初から用（同一レイアウトを保持）
+  let initialBoard=null;
 
   const sizeOfWorld=(w)=>({1:5,2:6,3:7,4:8,5:9}[w]||9);
   function trapsOf(size, sub){
@@ -191,7 +218,14 @@
     txt(trapPill,  `罠: ${trapsOf(s, sub)}`);
     intro.classList.remove('hidden');
   }
-  function startNow(e){ if(e){e.preventDefault?.();e.stopPropagation?.();} if(intro.classList.contains('hidden'))return; intro.classList.add('hidden'); startStage(); }
+
+  function startNow(e){
+    if(e){ e.preventDefault?.(); e.stopPropagation?.(); }
+    if(intro.classList.contains('hidden')) return;
+    intro.classList.add('hidden');
+    startStage();
+  }
+  // ボタン以外では開始しない
   startBtn.addEventListener('click', startNow);
   startBtn.addEventListener('pointerup', startNow);
   startBtn.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); startNow(e); }});
@@ -223,9 +257,9 @@
     }
 
     // 直線侵入対策
-    blockCastleLeft(path);        // 左隣を優先して罠に（通路なら回避）
-    enforceCastlePressure(path);  // 近接に最低1個
-    ensureTrapLeftOfCastle();     // ★同じ行の左側どこかに必ず罠（左隣を強制）
+    blockCastleLeft(path);
+    enforceCastlePressure(path);
+    ensureTrapLeftOfCastle();
 
     // 到達性チェック（ダメなら再生成）
     if(!isReachable()){ if(attempt<60) return startStage(attempt+1); }
@@ -237,7 +271,7 @@
     const trapCount = board.flat().reduce((a,c)=>a+(c==='T'),0);
     txt(trapPill, `罠: ${trapCount}`);
 
-    // ← ここで初期レイアウトを保存（「最初から」用）
+    // 初期レイアウト保存（↩最初から 用）
     initialBoard = board.map(row=>row.slice());
 
     draw();
@@ -399,7 +433,7 @@
     revealed[y][x]=true; ninja={x,y};
 
     if(board[y][x]==='T'){
-      txt(msgEl,'💥 罠にかかった！');
+      txt(msgEl,'💥 任務失敗…');
       wrapEl.classList.add('shake'); setTimeout(()=>wrapEl.classList.remove('shake'),600);
       revealAll(); draw(); showLose(); return;
     }
@@ -430,11 +464,9 @@
     const isFinal=(world===MAX_WORLD && sub===SUBS);
     if(isFinal){
       txt(ovTitle,'🏅 完全制覇！'); txt(ovDesc,'全25面クリア！最初の状態（1-1）から再開できます。');
-      // 完全制覇後の「同じステージ」は最初から（1-1）へ戻す挙動でOK
     }else{
       txt(ovTitle,'🎉 潜入成功！'); txt(ovDesc,'本丸に到達！次のステージへ進めます。');
     }
-    // オーバーレイのボタンはそのまま
     document.getElementById('next').classList.toggle('hidden', isFinal);
     document.getElementById('again').textContent = isFinal ? '🔁 最初から' : '🔁 同じステージ';
     ov.classList.remove('hidden');
@@ -447,17 +479,17 @@
   }
   function hideOv(){ ov.classList.add('hidden'); document.getElementById('next').classList.remove('hidden'); }
 
-  // ===== 追加：途中でも最初から／作り直す =====
+  // 途中でも最初から／作り直す
   function resetToInitial(){
     if(!initialBoard) return;
-    board = initialBoard.map(row=>row.slice());         // 同一レイアウトを復元
+    board = initialBoard.map(row=>row.slice());
     revealed = Array.from({length:SIZE},()=>Array(SIZE).fill(false));
     ninja=null; txt(msgEl,''); draw();
   }
-  restartSameBtn.addEventListener('click', resetToInitial);     // ↩ 最初から（同レイアウト）
-  retryBtn.addEventListener('click', ()=>{ hideOv(); startStage(); }); // 🎲 作り直す（新レイアウト）
+  restartSameBtn.addEventListener('click', resetToInitial);
+  retryBtn.addEventListener('click', ()=>{ hideOv(); startStage(); });
 
-  // オーバーレイ側のボタンも即時再開に合わせる
+  // オーバーレイ側のボタン
   document.getElementById('again').addEventListener('click', ()=>{
     const isFinal=(world===MAX_WORLD && sub===SUBS);
     hideOv();
@@ -467,10 +499,11 @@
   document.getElementById('next').addEventListener('click', ()=>{
     hideOv();
     if(sub<SUBS){ sub++; } else { sub=1; world=Math.min(MAX_WORLD, world+1); }
-    showIntro(); // 次のステージは従来どおりスタート画面から
+    showIntro();
   });
 
-  // 初期表示
+  // 初期適用 & 表示
+  applyPositions();
   showIntro();
 })();
 </script>
