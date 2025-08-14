@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<!-- ★ キャッシュ無効化 -->
+<!-- キャッシュ無効化（古いJSを掴まないように） -->
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>忍者潜入🏯 — no-cache & clean boot</title>
+<title>忍者潜入🏯 — 安定起動版</title>
 <style>
   :root{
     --bg:#070c18; --text:#eef3ff;
@@ -53,7 +53,7 @@
   }
   #board{
     display:grid; gap:var(--gap);
-    grid-template-columns:repeat(8,var(--cell));
+    grid-template-columns:repeat(8,var(--cell)); /* JSで更新 */
     width:max-content; padding:14px;
     background:#0b1734; border:2px solid #233a64; border-radius:16px;
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 16px 40px rgba(0,0,0,.55);
@@ -68,9 +68,11 @@
     transition:transform .06s ease, filter .12s ease, background .15s ease, border-color .15s ease, box-shadow .15s ease;
   }
   .cell:hover{filter:brightness(1.07)} .cell:active{transform:translateY(1px)}
-  .cell.open{ background:linear-gradient(180deg,var(--open1),var(--open2)); border-color:var(--open-border); cursor:default; box-shadow:inset 0 3px 10px rgba(0,0,0,.45)}
-  .cell.locked{ cursor:not-allowed; opacity:.50;
-    background:repeating-linear-gradient(135deg,var(--locked-stripe) 0 8px,transparent 8px 16px),linear-gradient(180deg,var(--covered1),var(--covered2));}
+  .cell.open{ background:linear-gradient(180deg,var(--open1),var(--open2)); border-color:var(--open-border); cursor:default; box-shadow:inset 0 3px 10px rgba(0,0,0,.45) }
+  .cell.locked{
+    cursor:not-allowed; opacity:.50;
+    background:repeating-linear-gradient(135deg,var(--locked-stripe) 0 8px,transparent 8px 16px),linear-gradient(180deg,var(--covered1),var(--covered2));
+  }
   .cell.frontier{
     box-shadow:0 0 0 3px var(--frontier) inset, 0 0 16px 2px var(--frontier-glow);
     border-color:#4bd3ff; filter:brightness(1.06);
@@ -95,7 +97,7 @@
 
   .overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at center, rgba(0,0,0,.35), rgba(0,0,0,.7)); z-index:10 }
   .overlay .panel{ background:#0f1b37; border:2px solid #2a4272; border-radius:18px; padding:18px; text-align:center; width:min(520px,92vw) }
-  .overlay .panel .btn{ font-size:1rem; padding:10px 16px }
+  .overlay .panel .btn{ font-size:1rem; padding:10px 16px } /* スタート小さめ */
   .stage-badge{ width:var(--cell); height:var(--cell); display:inline-flex; align-items:center; justify-content:center; border-radius:12px; background:linear-gradient(180deg,var(--covered1),var(--covered2)); border:2px solid var(--covered-border); font-weight:900; font-size:calc(var(--cell)*0.34); color:#e9f1ff }
   .hidden{ display:none }
 
@@ -132,14 +134,14 @@
     <p id="message" aria-live="polite"></p>
   </main>
 
-  <!-- スタート -->
+  <!-- スタート（フォールバックのため onclick も付与） -->
   <div id="intro" class="overlay" aria-modal="true" role="dialog">
     <div class="panel">
       <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-bottom:10px">
         <span style="opacity:.8">ステージ</span>
         <span id="badge" class="stage-badge">1-01</span>
       </div>
-      <button id="start" class="btn" type="button">▶ スタート</button>
+      <button id="start" class="btn" type="button" onclick="window.sennyuStart && window.sennyuStart(event)">▶ スタート</button>
     </div>
   </div>
 
@@ -164,51 +166,48 @@
   </footer>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => { (function(){ 'use strict';
-  /* ====== バージョン＆クリーン起動 ====== */
-  const VERSION = 'sennyu-2025-08-13-01';
+/* ====== ここから即時初期化（DOMContentLoaded 不使用） ====== */
+(function(){ 'use strict';
+  const VERSION = 'sennyu-2025-08-14-01';
   const $ = (id)=>document.getElementById(id);
-  const safeTxt = (el, t)=>{ if(el) el.textContent = t; };
-  safeTxt($('verPill'), VERSION);
-  console.log('Loaded:', VERSION);
+  const txt = (el,t)=>{ if(el) el.textContent=t; };
 
-  // 旧データ影響を最小化：当アプリのキーだけ削除
+  // バージョン表示
+  txt($('verPill'), VERSION);
+
+  // 旧データを念のため掃除（あってもなくてもOK）
   try{
     ['sennyu_world','sennyu_sub'].forEach(k=>localStorage.removeItem(k));
     sessionStorage.removeItem('sennyu_tmp');
   }catch(_){}
-
-  // SWがあれば解除（GitHub Pages 等で旧キャッシュを握っている場合の保険）
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.getRegistrations().then(regs=>{
-      regs.forEach(r=>r.unregister());
-    }).catch(()=>{});
+    navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
   }
 
-  /* ====== ユーティリティ ====== */
-  const clamp=(a,b,v)=>Math.max(a, Math.min(b, v));
-  const pad2=(n)=>String(n).padStart(2,'0');
-  const boardEl = $('board'), wrapEl = $('boardWrap'), msgEl = $('message');
+  // ==== DOM 参照（存在しなければ即警告） ====
+  const boardEl = $('board'), wrapEl=$('boardWrap'), msgEl=$('message');
   const stagePill=$('stagePill'), sizePill=$('sizePill'), trapPill=$('trapPill');
-  const intro = $('intro'), startBtn = $('start'), badge=$('badge');
-  const ov = $('ov'), ovTitle=$('ovTitle'), ovDesc=$('ovDesc'), nextBtn=$('next'), againBtn=$('again'), retryBtn=$('retry');
-
+  const intro=$('intro'), startBtn=$('start'), badge=$('badge');
+  const ov=$('ov'), ovTitle=$('ovTitle'), ovDesc=$('ovDesc'), nextBtn=$('next'), againBtn=$('again'), retryBtn=$('retry');
   if(!boardEl||!wrapEl||!msgEl||!stagePill||!sizePill||!trapPill||!intro||!startBtn||!badge||!ov||!ovTitle||!ovDesc||!nextBtn||!againBtn||!retryBtn){
     alert('初期化失敗：要素が見つかりません'); return;
   }
 
-  /* ====== 設定 ====== */
+  // ===== 設定：サイズ固定／罠で難易度調整 =====
   const MAX_WORLD=5, SUBS=5;
   let world=1, sub=1;
   let SIZE=5, TRAPS=6, board=[], revealed=[], ninja=null, castle={x:4,y:2};
+
   const sizeOfWorld = (w)=>({1:5,2:6,3:7,4:8,5:9}[w]||9);
   function trapsOf(size, sub){
-    const baseBySize = {5:6, 6:9, 7:12, 8:16, 9:20};
-    const base = baseBySize[size] ?? Math.floor(size*size*0.22);
-    const start = Math.max(1, base-1);
-    const cap = Math.floor(size*size*0.30);
-    return Math.min(cap, start + (sub-1));
+    const baseBySize={5:6,6:9,7:12,8:16,9:20};
+    const base=baseBySize[size] ?? Math.floor(size*size*0.22);
+    const start=Math.max(1, base-1);
+    const cap=Math.floor(size*size*0.30);
+    return Math.min(cap, start+(sub-1));
   }
+
+  const clamp=(a,b,v)=>Math.max(a, Math.min(b, v));
   function setCellSize(size){
     const wrapW = wrapEl.clientWidth || window.innerWidth;
     const gap = 7*(size-1);
@@ -218,42 +217,34 @@ document.addEventListener('DOMContentLoaded', () => { (function(){ 'use strict';
   }
   window.addEventListener('resize', ()=> setCellSize(SIZE));
 
-  function showIntro(same=false){
-    const s = sizeOfWorld(world);
-    safeTxt(badge, `${world}-${pad2(sub)}`);
-    safeTxt(stagePill, `World ${world}-${pad2(sub)}`);
-    safeTxt(sizePill,  `Size: ${s}×${s}`);
-    safeTxt(trapPill,  `罠: ${trapsOf(s, sub)}`);
-    intro.classList.remove('hidden');
-  }
-
-  /* ====== スタート（反応強化） ====== */
-  const startNow = (e)=>{
-    if(e){ e.preventDefault(); e.stopPropagation(); }
+  // ====== スタート動作（グローバルフォールバックも用意） ======
+  function startNow(e){
+    if(e){ e.preventDefault && e.preventDefault(); e.stopPropagation && e.stopPropagation(); }
     if(intro.classList.contains('hidden')) return;
     intro.classList.add('hidden');
     startStage();
-  };
-  startBtn.addEventListener('pointerup', startNow, {passive:false});
-  startBtn.addEventListener('click',     startNow, {passive:false});
-  // 背景クリックでも開始（保険）
-  intro.addEventListener('click', (e)=>{ if(!e.target.closest('#start')) startNow(e); }, {passive:false});
+  }
+  // イベント登録 + フォールバック
+  startBtn.addEventListener('click', startNow);
+  startBtn.addEventListener('pointerup', startNow);
+  intro.addEventListener('click', (e)=>{ if(!e.target.closest('#start')) startNow(e); });
+  window.sennyuStart = startNow; // ← ボタンの onclick からも呼べる
 
-  /* ====== 盤生成 ====== */
+  // ====== 盤生成 ======
   function startStage(attempt=0){
-    SIZE = sizeOfWorld(world);
-    TRAPS = trapsOf(SIZE, sub);
-    castle = {x: SIZE-1, y: Math.floor(SIZE/2)};
+    SIZE=sizeOfWorld(world);
+    TRAPS=trapsOf(SIZE, sub);
+    castle={x:SIZE-1,y:Math.floor(SIZE/2)};
     setCellSize(SIZE);
-    safeTxt(stagePill, `World ${world}-${pad2(sub)}`);
-    safeTxt(sizePill,  `Size: ${SIZE}×${SIZE}`);
-    safeTxt(trapPill,  `罠: ${TRAPS}`);
-    safeTxt(msgEl,''); ninja=null;
+    txt(stagePill, `World ${world}-${String(sub).padStart(2,'0')}`);
+    txt(sizePill,  `Size: ${SIZE}×${SIZE}`);
+    txt(trapPill,  `罠: ${TRAPS}`);
+    txt(msgEl,''); ninja=null;
 
-    board = Array.from({length:SIZE},()=>Array(SIZE).fill(0));
-    revealed = Array.from({length:SIZE},()=>Array(SIZE).fill(false));
+    board=Array.from({length:SIZE},()=>Array(SIZE).fill(0));
+    revealed=Array.from({length:SIZE},()=>Array(SIZE).fill(false));
 
-    const path = buildPath(SIZE, castle.y); // 最後は上下から入城
+    const path=buildPath(SIZE, castle.y); // 最後は上下から入城
     path.add(`${castle.x},${castle.y}`);
 
     let placed=0, tries=0, maxTries=SIZE*SIZE*20;
@@ -266,11 +257,11 @@ document.addEventListener('DOMContentLoaded', () => { (function(){ 'use strict';
       board[y][x]='T'; placed++;
     }
 
-    blockCastleLeft(path);       // 左直線ブロック（城左マスを罠に）
-    enforceCastlePressure(path); // 左マス周囲8に最低1罠
+    blockCastleLeft(path);       // 左直線ブロック
+    enforceCastlePressure(path); // 城前圧
 
     if(!isReachable()){
-      if(attempt < 50) return startStage(attempt+1);
+      if(attempt<50) return startStage(attempt+1);
       console.warn('到達性の確保に失敗（50回超）');
     }
 
@@ -281,17 +272,17 @@ document.addEventListener('DOMContentLoaded', () => { (function(){ 'use strict';
   }
 
   function buildPath(size, cy){
-    let y = Math.floor(Math.random()*size);
-    const s = new Set();
-    for(let x=0; x<=size-1; x++){
+    let y=Math.floor(Math.random()*size);
+    const s=new Set();
+    for(let x=0;x<=size-1;x++){
       s.add(`${x},${y}`);
-      if (x === size-2 && y === cy){ // 真横侵入を回避
-        if (y+1 < size) { y++; } else { y--; }
+      if(x===size-2 && y===cy){
+        if(y+1<size) y++; else y--;
         s.add(`${x},${y}`);
       }
-      if(x < size-1){
-        if(y < cy && Math.random()<0.5){ y++; s.add(`${x},${y}`); }
-        else if(y > cy && Math.random()<0.5){ y--; s.add(`${x},${y}`); }
+      if(x<size-1){
+        if(y<cy && Math.random()<0.5){ y++; s.add(`${x},${y}`); }
+        else if(y>cy && Math.random()<0.5){ y--; s.add(`${x},${y}`); }
       }
     }
     while(y<cy){ y++; s.add(`${size-1},${y}`); }
@@ -311,9 +302,9 @@ document.addEventListener('DOMContentLoaded', () => { (function(){ 'use strict';
   }
 
   function blockCastleLeft(path){
-    const lcx = castle.x-1, lcy = castle.y;
+    const lcx=castle.x-1, lcy=castle.y;
     if(lcx<0) return;
-    if(board[lcy][lcx] === 'T') return;
+    if(board[lcy][lcx]==='T') return;
     if(path.has(`${lcx},${lcy}`)) return;
     const donors=[];
     for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++){
@@ -325,13 +316,12 @@ document.addEventListener('DOMContentLoaded', () => { (function(){ 'use strict';
       donors.push({x,y});
     }
     if(!donors.length) return;
-    const d = donors[Math.floor(Math.random()*donors.length)];
-    board[d.y][d.x]=0;
-    board[lcy][lcx]='T';
+    const d=donors[Math.floor(Math.random()*donors.length)];
+    board[d.y][d.x]=0; board[lcy][lcx]='T';
   }
 
   function enforceCastlePressure(path){
-    const lcx = castle.x-1, lcy = castle.y;
+    const lcx=castle.x-1, lcy=castle.y;
     if(lcx<0) return;
     const hasNear=()=>{
       for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
@@ -351,8 +341,7 @@ document.addEventListener('DOMContentLoaded', () => { (function(){ 'use strict';
       if(nx===castle.x && ny===castle.y) continue;
       if(nx===0) continue;
       if(path.has(`${nx},${ny}`)) continue;
-      if(board[ny][nx]!=='T') candidates.push({nx,ny});
-      else return;
+      if(board[ny][nx]!=='T') candidates.push({nx,ny}); else return;
     }
     if(!candidates.length) return;
     const donors=[];
@@ -363,8 +352,8 @@ document.addEventListener('DOMContentLoaded', () => { (function(){ 'use strict';
       }
     }
     if(!donors.length) return;
-    const t = candidates[Math.floor(Math.random()*candidates.length)];
-    const d = donors[Math.floor(Math.random()*donors.length)];
+    const t=candidates[Math.floor(Math.random()*candidates.length)];
+    const d=donors[Math.floor(Math.random()*donors.length)];
     board[d.y][d.x]=0; board[t.ny][t.nx]='T';
   }
 
@@ -397,9 +386,9 @@ document.addEventListener('DOMContentLoaded', () => { (function(){ 'use strict';
   };
 
   function draw(){
-    boardEl.style.gridTemplateColumns = `repeat(${SIZE}, var(--cell))`;
-    boardEl.innerHTML='';
-    boardEl.classList.remove('boardShine');
+    boardEl.style.gridTemplateColumns=`repeat(${SIZE}, var(--cell))`;
+    boardEl.innerHTML=''; boardEl.classList.remove('boardShine');
+    let ninja={x:-1,y:-1}; // 表示位置（最新の開封位置を右下バッジに）
     for(let y=0;y<SIZE;y++){
       for(let x=0;x<SIZE;x++){
         const el=document.createElement('button');
@@ -407,17 +396,16 @@ document.addEventListener('DOMContentLoaded', () => { (function(){ 'use strict';
         if(x===0) el.classList.add('start');
         if(x===SIZE-1 && y===Math.floor(SIZE/2)) el.classList.add('castle');
 
-        const allow = canOpen(x,y);
+        const allow=canOpen(x,y);
         if(!revealed[y][x]) el.classList.add(allow?'frontier':'locked');
         else{
           el.classList.add('open');
           if(board[y][x]==='T'){ el.classList.add('trap'); el.textContent='💥'; }
           else{
-            const n=board[y][x];
-            if(n===0) el.classList.add('safe0'); else { el.textContent=n; el.classList.add('n'+n); }
+            const n=board[y][x]; if(n===0) el.classList.add('safe0'); else { el.textContent=n; el.classList.add('n'+n); }
           }
         }
-        if(ninja && ninja.x===x && ninja.y===y) el.classList.add('ninja');
+        if(window.__ninja && window.__ninja.x===x && window.__ninja.y===y) el.classList.add('ninja');
 
         el.addEventListener('click', ()=>onOpen(x,y));
         el.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); onOpen(x,y); } });
@@ -427,19 +415,18 @@ document.addEventListener('DOMContentLoaded', () => { (function(){ 'use strict';
   }
 
   function onOpen(x,y){
-    if(!canOpen(x,y)){ safeTxt(msgEl,'左端→到達済みの上下左右だけ開けられます。'); return; }
+    if(!canOpen(x,y)){ txt(msgEl,'左端→到達済みの上下左右だけ開けられます。'); return; }
     if(revealed[y][x]) return;
-    revealed[y][x]=true; ninja={x,y};
+    revealed[y][x]=true; window.__ninja={x,y};
 
     if(board[y][x]==='T'){
-      safeTxt(msgEl,'💥 罠にかかった！');
+      txt(msgEl,'💥 罠にかかった！');
       wrapEl.classList.add('shake'); setTimeout(()=>wrapEl.classList.remove('shake'),600);
       revealAll(); draw(); showLose(); return;
     }
     draw();
     if(x===SIZE-1 && y===Math.floor(SIZE/2)){
-      safeTxt(msgEl,'🎉 潜入成功！');
-      boardEl.classList.add('boardShine'); confettiFX();
+      txt(msgEl,'🎉 潜入成功！'); boardEl.classList.add('boardShine'); confettiFX();
       revealAll(); draw(); showWin();
     }
   }
@@ -461,28 +448,36 @@ document.addEventListener('DOMContentLoaded', () => { (function(){ 'use strict';
   }
 
   function showWin(){
-    const isFinal = (world===MAX_WORLD && sub===SUBS);
+    const isFinal=(world===MAX_WORLD && sub===SUBS);
     if(isFinal){
-      safeTxt(ovTitle,'🏅 完全制覇！');
-      safeTxt(ovDesc,'全25面クリア！最初の状態（1-1）から再開できます。');
-      $('next').classList.add('hidden');
-      $('again').textContent = '🔁 最初から';
+      txt(ovTitle,'🏅 完全制覇！'); txt(ovDesc,'全25面クリア！最初の状態（1-1）から再開できます。');
+      nextBtn.classList.add('hidden'); againBtn.textContent='🔁 最初から';
     }else{
-      safeTxt(ovTitle,'🎉 潜入成功！');
-      safeTxt(ovDesc,'本丸に到達！次のステージへ進めます。');
-      $('next').classList.remove('hidden');
-      $('again').textContent = '🔁 同じステージ';
+      txt(ovTitle,'🎉 潜入成功！'); txt(ovDesc,'本丸に到達！次のステージへ進めます。');
+      nextBtn.classList.remove('hidden'); againBtn.textContent='🔁 同じステージ';
     }
-    $('ov').classList.remove('hidden');
+    ov.classList.remove('hidden');
   }
   function showLose(){
-    safeTxt(ovTitle,'💥 任務失敗…'); safeTxt(ovDesc,'罠にかかった！同じステージで再挑戦。');
-    $('next').classList.add('hidden');
-    $('again').textContent = '🔁 同じステージ';
-    $('ov').classList.remove('hidden');
+    txt(ovTitle,'💥 任務失敗…'); txt(ovDesc,'罠にかかった！同じステージで再挑戦。');
+    nextBtn.classList.add('hidden'); againBtn.textContent='🔁 同じステージ';
+    ov.classList.remove('hidden');
   }
-  function hideOv(){ $('ov').classList.add('hidden'); $('next').classList.remove('hidden'); }
+  function hideOv(){ ov.classList.add('hidden'); nextBtn.classList.remove('hidden'); }
 
-  $('next').addEventListener('click', ()=>{
+  nextBtn.addEventListener('click', ()=>{
     hideOv();
-    if(sub<
+    if(sub<SUBS){ sub++; } else { sub=1; world=Math.min(MAX_WORLD, world+1); }
+    showIntro();
+  });
+  againBtn.addEventListener('click', ()=>{
+    const isFinal=(world===MAX_WORLD && sub===SUBS);
+    hideOv();
+    if(isFinal){ world=1; sub=1; } // 完全制覇→最初へ
+    showIntro(true);
+  });
+  retryBtn.addEventListener('click', ()=>{ hideOv(); showIntro(true); });
+
+  function showIntro(same=false){
+    const s=sizeOfWorld(world);
+    txt(badge, `${world}-${String(sub).padStart(2,'0')}
