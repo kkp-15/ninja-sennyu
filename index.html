@@ -77,7 +77,7 @@
   .pill{padding:.35em .7em;border-radius:999px;border:1px solid #cfe0ff;background:#eef6ff;font-weight:800;color:#17324d}
   #message{min-height:1.8em;text-align:center;font-weight:900}
   #message.win{color:var(--ok)} #message.lose{color:var(--ng)}
-  .bar{display:flex;gap:12px;justify-content:center;margin:.35rem 0}
+  .bar{display:flex;gap:12px;justify-content:center;margin:.35rem 0; flex-wrap:wrap}
   .btn{background:linear-gradient(180deg,#ffffff,#f1f7ff); border:2px solid #cfe0ff; color:#17324d; border-radius:14px; font-weight:900; cursor:pointer; padding:12px 18px; box-shadow:0 6px 14px rgba(64,103,163,.12)}
   .btn:hover{filter:brightness(1.03)}
 
@@ -112,7 +112,10 @@
 
   <main class="wrap">
     <div id="boardWrap"><div id="board" role="grid" aria-label="ゲーム盤面"></div></div>
-    <div class="bar"><button id="retry" class="btn" type="button">🔁 同じステージ</button></div>
+    <div class="bar">
+      <button id="restartSame" class="btn" type="button">↩ 最初から</button>
+      <button id="retry" class="btn" type="button">🎲 作り直す</button>
+    </div>
     <p id="message" aria-live="polite"></p>
   </main>
 
@@ -149,7 +152,7 @@
 
 <script>
 (function(){ 'use strict';
-  const VERSION='sennyu-single-2025-08-14-light-Lguard2';
+  const VERSION='sennyu-single-2025-08-14-light-Lguard2d';
   const $=(id)=>document.getElementById(id);
   const txt=(el,t)=>{ if(el) el.textContent=t; };
 
@@ -163,12 +166,14 @@
   const boardEl=$('board'), wrapEl=$('boardWrap'), msgEl=$('message');
   const stagePill=$('stagePill'), sizePill=$('sizePill'), trapPill=$('trapPill');
   const intro=$('intro'), startBtn=$('start'), badge=$('badge');
-  const ov=$('ov'), ovTitle=$('ovTitle'), ovDesc=$('ovDesc'), nextBtn=$('next'), againBtn=$('again'), retryBtn=$('retry');
+  const ov=$('ov'), ovTitle=$('ovTitle'), ovDesc=$('ovDesc'), nextBtn=$('next'), againBtn=$('again');
+  const retryBtn=$('retry'), restartSameBtn=$('restartSame');
   txt($('verPill'), VERSION);
 
   const MAX_WORLD=5, SUBS=5;
   let world=1, sub=1;
   let SIZE=5, TRAPS=6, board=[], revealed=[], castle={x:4,y:2}, ninja=null;
+  let initialBoard=null; // ← 最初から用（同一レイアウトを保持）
 
   const sizeOfWorld=(w)=>({1:5,2:6,3:7,4:8,5:9}[w]||9);
   function trapsOf(size, sub){
@@ -189,7 +194,7 @@
   function startNow(e){ if(e){e.preventDefault?.();e.stopPropagation?.();} if(intro.classList.contains('hidden'))return; intro.classList.add('hidden'); startStage(); }
   startBtn.addEventListener('click', startNow);
   startBtn.addEventListener('pointerup', startNow);
-  intro.addEventListener('click', e=>{ if(!e.target.closest('#start')) startNow(e); });
+  startBtn.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); startNow(e); }});
   window.__sennyuStart=startNow;
 
   function startStage(attempt=0){
@@ -218,17 +223,22 @@
     }
 
     // 直線侵入対策
-    blockCastleLeft(path);        // 左隣を優先して罠に
+    blockCastleLeft(path);        // 左隣を優先して罠に（通路なら回避）
     enforceCastlePressure(path);  // 近接に最低1個
-    ensureTrapLeftOfCastle();     // ★同一行左側に必ず罠（最終保証）
+    ensureTrapLeftOfCastle();     // ★同じ行の左側どこかに必ず罠（左隣を強制）
 
     // 到達性チェック（ダメなら再生成）
     if(!isReachable()){ if(attempt<60) return startStage(attempt+1); }
 
-    // 数字付与 & 実罠数でHUD更新
-    for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++){ if(board[y][x]!=='T') board[y][x]=count8(x,y); }
+    // 数字計算
+    for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++){
+      if(board[y][x]!=='T') board[y][x]=count8(x,y);
+    }
     const trapCount = board.flat().reduce((a,c)=>a+(c==='T'),0);
     txt(trapPill, `罠: ${trapCount}`);
+
+    // ← ここで初期レイアウトを保存（「最初から」用）
+    initialBoard = board.map(row=>row.slice());
 
     draw();
   }
@@ -239,7 +249,7 @@
     const s=new Set();
     for(let x=0;x<=size-1;x++){
       s.add(`${x},${y}`);
-      if(x===size-2 && y===cy){ if(y+1<size) y++; else y--; s.add(`${x},${y}`); } // 左隣直通を回避
+      if(x===size-2 && y===cy){ if(y+1<size) y++; else y--; s.add(`${x},${y}`); }
       if(x<size-1){
         if(y<cy && Math.random()<0.5){ y++; s.add(`${x},${y}`); }
         else if(y>cy && Math.random()<0.5){ y--; s.add(`${x},${y}`); }
@@ -316,16 +326,15 @@
     board[d.y][d.x]=0; board[t.ny][t.nx]='T';
   }
 
-  // ★最終保証：同じ行の「左側どこか」に必ず罠（特に左隣を強制罠）
+  // ★最終保証：同じ行の「左側どこか」に必ず罠（左隣を強制罠）
   function ensureTrapLeftOfCastle(){
     const y=castle.y, lcx=castle.x-1;
-    if(lcx<=0) return;                // 左端x=0には置かないポリシー
-    // 既にあればOK
+    if(lcx<=0) return; // 左端x=0には置かない
     for(let x=1;x<=lcx;x++){ if(board[y][x]==='T') return; }
-    // 左隣を強制罠に（通路かどうかに関わらず）
     board[y][lcx]='T';
   }
 
+  // 左端どこかから🏯までの到達性チェック（上下左右のみ）
   function isReachable(){
     const tx=castle.x, ty=castle.y;
     const seen=Array.from({length:SIZE},()=>Array(SIZE).fill(false));
@@ -345,6 +354,7 @@
     return false;
   }
 
+  // 左→右へ「左・上・下」からのみ開けられる
   const canOpen=(x,y)=>{
     if(revealed[y][x]) return false;
     if(x===0) return true;
@@ -370,7 +380,8 @@
           el.classList.add('open');
           if(board[y][x]==='T'){ el.classList.add('trap'); el.textContent='💥'; }
           else{
-            const n=board[y][x]; if(n===0) el.classList.add('safe0'); else { el.textContent=n; el.classList.add('n'+n); }
+            const n=board[y][x];
+            if(n===0) el.classList.add('safe0'); else { el.textContent=n; el.classList.add('n'+n); }
           }
         }
         if(ninja && ninja.x===x && ninja.y===y) el.classList.add('ninja');
@@ -398,6 +409,7 @@
       revealAll(); draw(); showWin();
     }
   }
+
   const revealAll=()=>{ for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++) revealed[y][x]=true; };
 
   function confettiFX(){
@@ -418,19 +430,47 @@
     const isFinal=(world===MAX_WORLD && sub===SUBS);
     if(isFinal){
       txt(ovTitle,'🏅 完全制覇！'); txt(ovDesc,'全25面クリア！最初の状態（1-1）から再開できます。');
-      nextBtn.classList.add('hidden'); againBtn.textContent='🔁 最初から';
+      // 完全制覇後の「同じステージ」は最初から（1-1）へ戻す挙動でOK
     }else{
       txt(ovTitle,'🎉 潜入成功！'); txt(ovDesc,'本丸に到達！次のステージへ進めます。');
-      nextBtn.classList.remove('hidden'); againBtn.textContent='🔁 同じステージ';
     }
+    // オーバーレイのボタンはそのまま
+    document.getElementById('next').classList.toggle('hidden', isFinal);
+    document.getElementById('again').textContent = isFinal ? '🔁 最初から' : '🔁 同じステージ';
     ov.classList.remove('hidden');
   }
-  function showLose(){ txt(ovTitle,'💥 任務失敗…'); txt(ovDesc,'罠にかかった！同じステージで再挑戦。'); nextBtn.classList.add('hidden'); againBtn.textContent='🔁 同じステージ'; ov.classList.remove('hidden'); }
-  function hideOv(){ ov.classList.add('hidden'); nextBtn.classList.remove('hidden'); }
-  nextBtn.addEventListener('click', ()=>{ hideOv(); if(sub<SUBS){ sub++; } else { sub=1; world=Math.min(MAX_WORLD, world+1); } showIntro(); });
-  againBtn.addEventListener('click', ()=>{ const isFinal=(world===MAX_WORLD && sub===SUBS); hideOv(); if(isFinal){ world=1; sub=1; } showIntro(true); });
-  retryBtn.addEventListener('click', ()=>{ hideOv(); showIntro(true); });
+  function showLose(){
+    txt(ovTitle,'💥 任務失敗…'); txt(ovDesc,'罠にかかった！同じステージで再挑戦。');
+    document.getElementById('next').classList.add('hidden');
+    document.getElementById('again').textContent='🔁 同じステージ';
+    ov.classList.remove('hidden');
+  }
+  function hideOv(){ ov.classList.add('hidden'); document.getElementById('next').classList.remove('hidden'); }
 
+  // ===== 追加：途中でも最初から／作り直す =====
+  function resetToInitial(){
+    if(!initialBoard) return;
+    board = initialBoard.map(row=>row.slice());         // 同一レイアウトを復元
+    revealed = Array.from({length:SIZE},()=>Array(SIZE).fill(false));
+    ninja=null; txt(msgEl,''); draw();
+  }
+  restartSameBtn.addEventListener('click', resetToInitial);     // ↩ 最初から（同レイアウト）
+  retryBtn.addEventListener('click', ()=>{ hideOv(); startStage(); }); // 🎲 作り直す（新レイアウト）
+
+  // オーバーレイ側のボタンも即時再開に合わせる
+  document.getElementById('again').addEventListener('click', ()=>{
+    const isFinal=(world===MAX_WORLD && sub===SUBS);
+    hideOv();
+    if(isFinal){ world=1; sub=1; }
+    startStage(); // 新レイアウトで即再挑戦
+  });
+  document.getElementById('next').addEventListener('click', ()=>{
+    hideOv();
+    if(sub<SUBS){ sub++; } else { sub=1; world=Math.min(MAX_WORLD, world+1); }
+    showIntro(); // 次のステージは従来どおりスタート画面から
+  });
+
+  // 初期表示
   showIntro();
 })();
 </script>
