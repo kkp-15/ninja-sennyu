@@ -480,4 +480,17 @@
 
   function showIntro(same=false){
     const s=sizeOfWorld(world);
-    txt(badge, `${world}-${String(sub).padStart(2,'0')}
+    txt(badge, `${world}-${String(sub).padStart(2,'0')}`);
+    txt(stagePill, `World ${world}-${String(sub).padStart(2,'0')}`);
+    txt(sizePill,  `Size: ${s}×${s}`);
+    txt(trapPill,  `罠: ${trapsOf(s, sub)}`);
+    intro.classList.remove('hidden');
+  }
+
+  // 初期表示
+  showIntro();
+
+})(); // ここで即実行
+</script>
+</body>
+</html>
